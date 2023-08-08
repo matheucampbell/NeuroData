@@ -14,7 +14,7 @@ This repo contains documentation and utility scripts for data collection, cloud 
     - Date
     - Time
 3. Proceed to collection. When complete, there will be a session folder containing the newly generated .csv file and its accompanying info file.
-4. Supply info json and session .csv to upload script to store data on the cloud.
+4. Supply info json and session .csv to the upload script to store data on the cloud.
 
 ### Data retrieval:
 1. Use retrieval script to query S3, downloads into datapackage folder with the following structure.
