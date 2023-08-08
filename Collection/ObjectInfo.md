@@ -50,6 +50,7 @@ Description: Subject blinked as natural while watching a two minute video, click
 **SessionID**: 5 digit number that identifies this session
 
 ### Sample Info for 3-stimulus SSVEP session
+```
 {
     "SessionParams" : {
         "SubjectName" : "Matheu Campbell",
@@ -73,8 +74,10 @@ Description: Subject blinked as natural while watching a two minute video, click
     "S3Path" : "s3://neuro-session-bucket/15422_12-03-22.csv",
     "SessionID": 15422
 }
+```
 
 ### Sample Info for audio ERP session
+```
 {
     "SessionParams" : {
         "SubjectName" : "Matheu Campbell",
@@ -99,8 +102,9 @@ Description: Subject blinked as natural while watching a two minute video, click
     "S3Path" : "https://neurobucket.s3.amazonaws.com/19937"
     "SessionID": 19937
 }
-
+```
 ### Sample Info for generic data collection session
+```
 {
     "SessionParams" : {
         "SubjectName" : "Matheu Campbell",
@@ -122,3 +126,4 @@ Description: Subject blinked as natural while watching a two minute video, click
     "S3Path" : "https://neurobucket.s3.amazonaws.com/19456"
     "SessionID": 19945
 }
+```
