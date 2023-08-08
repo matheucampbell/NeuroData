@@ -19,14 +19,16 @@ This repo contains documentation and utility scripts for data collection, cloud 
 ### Data retrieval:
 1. Use retrieval script to query S3, downloads into datapackage folder with the following structure.
 
-datapackage/ \
-    ├─ packageinfo.txt \
-    ├─ 24601/ \
-    │  ├─ 24601_11-12-23.csv \
-    │  └─ info.json \
-    └─ 10025/ \
-       ├─ 10024_11-13-25.csv \
-       └─ info.json \
+```
+datapackage/
+    ├─ packageinfo.txt
+    ├─ 24601/
+    │  ├─ 24601_11-12-23.csv
+    │  └─ info.json
+    └─ 10025/
+       ├─ 10024_11-13-25.csv
+       └─ info.json
+```
 
 ### **Functions**
 
