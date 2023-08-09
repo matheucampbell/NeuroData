@@ -39,10 +39,10 @@ class DataCollectionGUI(QMainWindow):
         self.timer = QTimer(self)
 
         self.central_widget = QWidget(self)
-        self.label_status = QLabel(f"Current Block: {self.current_block} / Total Blocks: {self.bcount}")
-        self.label_timer = QLabel("Time Remaining in Current Block: 00:00")
+        self.label_status = QLabel(f"Block: {self.current_block}/{self.bcount}\t00:00")
+        self.label_timer = QLabel(f"00:00")
         self.label_stimcycle = QLabel(self.get_stimcycle_text())
-        self.label_annotation = QLabel("Enter Annotation:")
+        self.entry_button = QPushButton("Add Annotation")
         self.entry_annotation = QLineEdit(self)
         self.state_indicator = StateIndicator("#04d481", "#1d2324")
         self.start_button = QPushButton("Start")
@@ -56,12 +56,10 @@ class DataCollectionGUI(QMainWindow):
 
         self.setCentralWidget(self.central_widget)
 
-        layout = QVBoxLayout()
+        layout = QGridLayout()
 
         layout.addWidget(self.label_status)
-        layout.addWidget(self.label_timer)
         layout.addWidget(self.label_stimcycle)
-        layout.addWidget(self.label_annotation)
 
         ind_layout = QGridLayout()
         ind_layout.addWidget(self.state_indicator, 0, 1, Qt.AlignRight)
@@ -70,6 +68,9 @@ class DataCollectionGUI(QMainWindow):
         self.entry_annotation.returnPressed.connect(self.on_enter_annotation)
         self.entry_annotation.setPlaceholderText("t0")
         layout.addWidget(self.entry_annotation)
+
+        self.entry_button.clicked.connect(self.on_enter_annotation)
+        layout.addWidget(self.entry_button)
 
         self.start_button.clicked.connect(self.start_session)
         layout.addWidget(self.start_button)
@@ -100,10 +101,11 @@ class DataCollectionGUI(QMainWindow):
         self.start_time = None
         self.complete = False
         self.timer.stop()
-        self.label_timer.setText("Time Remaining in Current Block: 00:00")
+        self.label_status.setText(f"Block: {self.current_block}/{self.bcount}\t00:00")
         self.label_stimcycle.setText(self.get_stimcycle_text())
-        self.label_status.setText(f"Current Block: {self.current_block} / Total Blocks: {self.bcount}")
+
         self.state_indicator.set_color(active=False)
+
         self.start_button.setDisabled(False)
         self.stop_button.setDisabled(True)
 
@@ -136,19 +138,18 @@ class DataCollectionGUI(QMainWindow):
         else:
             return "Stimcycle data not available for current block"
 
-    def update_current_block(self):
+    def update_current_block(self, ftime):
         elapsed_time = datetime.now() - self.start_time
         self.current_block = int(elapsed_time.total_seconds() / self.blength) + 1
         if self.current_block > self.bcount:
             self.current_block = self.bcount
             self.timer.stop()
             self.label_stimcycle.setText("Session complete")
-            self.label_timer.setText("Time Remaining in Current Block: 00:00")
             self.complete = True
             self.state_indicator.set_color(active=False)
             self.stop_button.setDisabled(False)
         else:
-            self.label_status.setText(f"Current Block: {self.current_block} / Total Blocks: {self.bcount}")
+            self.label_status.setText(f"Block: {self.current_block}/{self.bcount}\t{ftime}")
             self.label_stimcycle.setText(self.get_stimcycle_text())
             stimulus_active = self.stimcycle[self.current_block - 1] == '1'
             self.state_indicator.set_color(stimulus_active)
@@ -156,22 +157,21 @@ class DataCollectionGUI(QMainWindow):
     def update_timer(self):
         if self.start_time:
             # Call the update_current_block method in a separate thread
-            thread = threading.Thread(target=self.update_current_block)
-            thread.start()
-
             elapsed_time = datetime.now() - self.start_time
             elapsed_seconds = int(elapsed_time.total_seconds())
 
             if self.current_block <= self.bcount and not self.complete:
                 remaining_seconds = max(0, self.blength - (elapsed_seconds % self.blength))
                 formatted_time = QTime(0, 0).addSecs(remaining_seconds).toString("mm:ss")
-                self.label_timer.setText(f"Time Remaining in Current Block: {formatted_time}")
+
+                thread = threading.Thread(target=self.update_current_block, args=(formatted_time,))
+                thread.start()
 
 
 if __name__ == "__main__":
     import sys
     from PyQt5.QtWidgets import QApplication
 
-    app = QApplication(sys.argv)
+    app = QApplication([])
     data_collection_gui = DataCollectionGUI(".cache.json")
     sys.exit(app.exec_())

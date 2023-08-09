@@ -1,14 +1,14 @@
 QMainWindow {
     color: white;
-    background-color: #2d2f33;
+    background-color: #43484d;
 }
 QLabel {
-    color: white;
-    font-size: 20px;
-    font-family: Calibri, sans-serif;
-    font-weight: bold;
+    color: #c5cfde;
+    font-size: 15px;
+    font-family: Courier New, monospace;
     margin: 5px;
 }
+#FieldLabels { font-weight: bold }
 QPushButton {
     background-color: #007bff;
     color: white;
@@ -33,4 +33,7 @@ QLineEdit {
     border-radius: 5px;
     font-size: 14px;
 }
-#StateIndicator { background-color: #1d2324; border-radius: 20px; }
+QFrame {
+    background-color: #1d2324;
+    border-radius: 10px;
+}
