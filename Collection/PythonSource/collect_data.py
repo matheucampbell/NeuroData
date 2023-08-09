@@ -2,13 +2,14 @@
 from datetime import datetime
 from time import sleep, ctime
 from threading import Thread, Event
+from GUIClass import DataCollectionGUI
+from PyQt5.QtWidgets import QApplication
 
 import json
 import os
 import numpy as np
 import pandas as pd
 import shutil
-# import tkinter as tk
 
 """
 Records a data collection session as one .csv file with an accompanying 
@@ -24,35 +25,38 @@ current_dir
     └─ .cached.json
 """
 
+
 def create_empty_info():
     return {
-    "SessionParams" : {
-        "SubjectName" : "",
-        "ResponseType" : "",
-        "StimulusType" : "",
-        "BlockLength" : 0,
-        "BlockCount" : 0,
-        "StimCycle" : 0
-    },
-    "HardwareParams" : {
-        "SampleRate" : 0,
-        "HeadsetConfiguration" : "",
-        "HeadsetModel" : "",
-        "BufferSize" : ""
-    },
-    "ProjectName" : "",
-    "Description" : "",
-    "Annotations" : [],
-    "Date" : datetime.now().strftime("%m-%d-%y"),
-    "Time" : datetime.now().strftime("%H:%M"),
-    "S3Path" : None,
-    "SessionID": None
-    }
+        "SessionParams": {
+            "SubjectName": "",
+            "ResponseType": "",
+            "StimulusType": "",
+            "BlockLength": 0,
+            "BlockCount": 0,
+            "StimCycle": 0
+        },
+        "HardwareParams": {
+            "SampleRate": 0,
+            "HeadsetConfiguration": "",
+            "HeadsetModel": "",
+            "BufferSize": ""
+        },
+        "ProjectName": "",
+        "Description": "",
+        "Annotations": [],
+        "Date": datetime.now().strftime("%m-%d-%y"),
+        "Time": datetime.now().strftime("%H:%M"),
+        "S3Path": None,
+        "SessionID": None
+        }
+
 
 def insert_timestamps(info):
     bcount = int(info.get('SessionParams').get('BlockCount'))
     blength = int(info.get('SessionParams').get('BlockLength'))
-    info['Annotations'] = [(int(blength*k), f"Block{k}") for k in range(1, bcount+1)]
+    info['Annotations'] = [(float(blength*k), f"Block{k}") for k in range(1, bcount+1)]
+
 
 def update_cache(new=False, cachepath=None):
     exclude = ("Annotations", "S3Path", "SessionID")
@@ -69,8 +73,7 @@ def update_cache(new=False, cachepath=None):
                 if k not in exclude and (newval := input(f"{k} ({v}): ")) != "":
                     info[key][k] = newval
             continue
-        if key not in exclude and (newval := input(f"{key} ({val}): ")) != "" and \
-            key not in exclude:
+        if key not in exclude and (newval := input(f"{key} ({val}): ")) != "" and key not in exclude:
             info[key] = newval
     
     insert_timestamps(info)
@@ -105,9 +108,22 @@ def prepare_session():
 
     return os.path.join(os.getcwd(), os.path.join(f"session_{suffix}"))
 
-sesdir = prepare_session()
-with open(os.path.join(sesdir, "info.json"), 'r') as f:
-    info = json.loads(f.read())
+
+def start_collection_gui(ipath):
+    app = QApplication([])
+    gui = DataCollectionGUI(ipath)
+    app.exec_()
+
+
+if __name__ == "__main__":
+    sesdir = prepare_session()
+    infopath = os.path.join(sesdir, "info.json")
+    with open(os.path.join(sesdir, "info.json"), 'r') as f:
+        info = json.loads(f.read())
+
+    # collect_thread = Thread(target=start_collection_thread, args=())
+    gui_thread = Thread(target=start_collection_gui, args=(infopath,))
+    gui_thread.start()
 
 '''# BrainFlow Parameters
 params = BrainFlowInputParams()
