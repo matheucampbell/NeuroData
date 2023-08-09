@@ -2,13 +2,13 @@
 from datetime import datetime
 from time import sleep, ctime
 from threading import Thread, Event
-from GUIClass import DataCollectionGUI
+from DataGUI import DataCollectionGUI
 from PyQt5.QtWidgets import QApplication
 
 import json
 import os
-import numpy as np
-import pandas as pd
+# import numpy as np
+# import pandas as pd
 import shutil
 
 """
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 '''# BrainFlow Parameters
 params = BrainFlowInputParams()
 params.serial_port = "COM3"  # check device manager on Windows
-board_id = 2  # 0 for cyton, #2 for Cyton/Daisy, there is also an option for synthetic data
+board_id = 2  # 0 for cyton, 2 for Cyton/Daisy, there is also an option for synthetic data
 
 board = BoardShim(board_id, params)
 board.disable_board_logger()

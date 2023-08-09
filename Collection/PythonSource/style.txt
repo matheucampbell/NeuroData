@@ -5,7 +5,6 @@ QMainWindow {
 QLabel {
     color: #c5cfde;
     font-size: 15px;
-    font-family: Courier New, monospace;
     margin: 5px;
 }
 #FieldLabels { font-weight: bold }

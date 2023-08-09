@@ -73,8 +73,9 @@ class DataCollectionGUI(QMainWindow):
         
         # Buttons and top level widgets
         self.central_widget = QWidget(self)
-        self.entry_button = QPushButton("Add Annotation")
+        self.entry_button = QPushButton("Mark Event")
         self.entry_annotation = QLineEdit(self)
+        self.entry_annotation.returnPressed.connect(self.on_enter_annotation)
         self.state_indicator = StateIndicator("#04d481", "black")
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
@@ -83,7 +84,7 @@ class DataCollectionGUI(QMainWindow):
 
     def init(self):
         self.setWindowTitle("Data Collection GUI")
-        self.setFixedSize(500, 500)
+        self.setFixedWidth(500)
         self.setCentralWidget(self.central_widget)
 
         layout = QVBoxLayout()
@@ -124,6 +125,7 @@ class DataCollectionGUI(QMainWindow):
         self.stop_button.clicked.connect(self.stop_session)
 
         self.central_widget.setLayout(layout)
+        self.entry_annotation.setPlaceholderText("t0")
         self.set_info()
         self.update_status()
         self.show()
