@@ -1,8 +1,9 @@
-# from brainflow.board_shim import BoardShim, BrainFlowInputParams
+import brainflow
+from brainflow.board_shim import BoardShim, BrainFlowInputParams
 from datetime import datetime
 from time import sleep, ctime
 from threading import Thread, Event
-from DataGUI import DataCollectionGUI
+from DataGUI import DataCollectionGUI, CollectionSession
 from PyQt5.QtWidgets import QApplication
 
 import json
@@ -10,6 +11,7 @@ import os
 # import numpy as np
 # import pandas as pd
 import shutil
+import sys
 
 """
 Records a data collection session as one .csv file with an accompanying 
@@ -102,28 +104,47 @@ def prepare_session():
         print("No info JSON found. Creating a new one.\n")
         update_cache(new=True)
     
-    suffix = datetime.now().strftime("%d-%m-%y") + "_" + ctime()[-13:-8].replace(":", "")
+    # suffix = datetime.now().strftime("%d-%m-%y") + "_" + ctime()[-13:-8].replace(":", "")
+    suffix = datetime.now().strftime("%d-%m-%y")
     os.makedirs(os.path.join(os.getcwd(), f"session_{suffix}"), exist_ok=True)
     shutil.copyfile(cache, os.path.join(os.getcwd(), os.path.join(f"session_{suffix}"), "info.json"))
 
-    return os.path.join(os.getcwd(), os.path.join(f"session_{suffix}"))
+    print("Board setup...")
+    while (com := input("Which serial port is the board connected to? ")) == "":
+        print("Invalid.")
+    while (bid := input("Cyton (0) or CytonDaisy (2)? ")) not in ["0", "2"]:
+        print("Invalid.")
+
+    return os.path.join(os.getcwd(), os.path.join(f"session_{suffix}")), com, int(bid)
 
 
-def start_collection_gui(ipath):
+def start_collection_gui(ipath, sflags, eflags):
     app = QApplication([])
-    gui = DataCollectionGUI(ipath)
+    gui = DataCollectionGUI(ipath, sflags, eflags)
     app.exec_()
 
 
 if __name__ == "__main__":
-    sesdir = prepare_session()
+    sesdir, serial, bid = prepare_session()
     infopath = os.path.join(sesdir, "info.json")
     with open(os.path.join(sesdir, "info.json"), 'r') as f:
         info = json.loads(f.read())
 
-    # collect_thread = Thread(target=start_collection_thread, args=())
-    gui_thread = Thread(target=start_collection_gui, args=(infopath,))
-    gui_thread.start()
+    # collect_thread = Thread(target=start_collection, args=(serial, bid))
+    # gui_thread = Thread(target=start_collection_gui, args=(infopath,))
+    params = BrainFlowInputParams()
+    params.serial_port = serial  # check device manager on Windows
+    try:
+        board = BoardShim(bid, params)
+    except brainflow.BrainFlowError as E:
+        print(f"Error creating BoardShim object. Check serial port and board ID.\n{E}")
+        sys.exit()
+
+    session = CollectionSession(board, sesdir)
+    flag_list = session.get_flags()
+    gui = Thread(target=start_collection_gui, args=(infopath, flag_list[0], flag_list[1]))
+    session.start()
+    gui.start()
 
 '''# BrainFlow Parameters
 params = BrainFlowInputParams()

@@ -1,10 +1,13 @@
+import brainflow
 import json
 import threading
 
+from datetime import datetime
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QWidget, QFrame
 from PyQt5.QtCore import Qt, QTimer, QTime
-from datetime import datetime
+from time import sleep
+from threading import Thread, Event
 
 
 class StateIndicator(QFrame):
@@ -27,17 +30,22 @@ class StateIndicator(QFrame):
             self.setStyleSheet(f"#StateIndicator {{ background-color: {self.inactive}; border-radius: {self.dia//2}px; }}")
 
 
-class DataCollectionGUI(QMainWindow):
-    def __init__(self, infopath):
+class DataCollectionGUI(QMainWindow, threading.Thread):
+    def __init__(self, infopath, status_flags, event_flags):
         super().__init__()
         self.infopath = infopath
         with open(infopath, 'r') as i:
             self.info = json.loads(i.read())
-        
+
+        # Only set by collection thread to indicate board status
+        self.ready_flag, self.ongoing, self.error_flag = status_flags
+        # Set by GUI thread to start collection, but stop may be set by either collection or GUI thread
+        self.start_event, self.stop_event = event_flags
+
+        self.session_status = "Preparing"
         self.bcount = int(self.info['SessionParams']['BlockCount'])
         self.blength = int(self.info['SessionParams']['BlockLength'])
         self.stimcycle = self.info['SessionParams']['StimCycle']
-        self.session_status = "Ready"
         self.itext = None
 
         self.current_block = 0
@@ -48,7 +56,7 @@ class DataCollectionGUI(QMainWindow):
 
         # Top section
         self.info_panel = QFrame(self)
-        self.info_panel.setFrameStyle(QFrame.Panel|QFrame.Plain)
+        self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
         self.info_labels = QLabel(parent=self.info_panel)
         self.info_labels.setText("Subject:\nProject:\nResponse Type:\nStimulus Type:\n\nSampling Rate:\n" + 
@@ -58,7 +66,7 @@ class DataCollectionGUI(QMainWindow):
 
         # Bottom Left Panel
         self.status_panel = QFrame(self)
-        self.status_panel.setFrameStyle(QFrame.Panel|QFrame.Plain)
+        self.status_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.status_panel.setFixedWidth(235)
         self.status_label = QLabel("Active")
         self.status_info = QLabel()
@@ -67,7 +75,7 @@ class DataCollectionGUI(QMainWindow):
 
         # Bottom Right Panel
         self.session_panel = QFrame(self)
-        self.session_panel.setFrameStyle(QFrame.Panel|QFrame.Plain)
+        self.session_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.session_label = QLabel(f"Block Count: {self.bcount}\nBlock Length: {self.blength}s\n" +
                                     f"Cycle: {self.stimcycle}")
         
@@ -121,8 +129,10 @@ class DataCollectionGUI(QMainWindow):
         layout.addWidget(self.entry_button)
         layout.addWidget(self.start_button)
         self.start_button.clicked.connect(self.start_session)
+        self.start_button.setDisabled(True)
         layout.addWidget(self.stop_button)
         self.stop_button.clicked.connect(self.stop_session)
+        self.stop_button.setDisabled(True)
 
         self.central_widget.setLayout(layout)
         self.entry_annotation.setPlaceholderText("t0")
@@ -131,6 +141,23 @@ class DataCollectionGUI(QMainWindow):
         self.show()
         with open("style.txt", 'r') as f:
             self.setStyleSheet(f.read())
+        ready_thread = Thread(target=self.wait_for_ready)
+        ready_thread.start()
+
+    def wait_for_ready(self):
+        i = 0
+        while not (ready := self.ready_flag.is_set()) and not (error := self.error_flag.is_set()):
+            self.session_status = "Preparing" + "." * i
+            self.set_info()
+            i = (i+1) % 4
+            sleep(0.5)
+        if ready:
+            self.session_status = "Ready"
+            self.set_info()
+            self.start_button.setDisabled(False)
+        elif error:
+            self.session_status = "Error: Check logs"
+            self.set_info()
 
     def add_annotation(self, time, note):
         self.info['Annotations'].append([time, note])
@@ -219,11 +246,36 @@ class DataCollectionGUI(QMainWindow):
         return f"t{self.t}"
 
 
+class CollectionSession(threading.Thread):
+    def __init__(self, boardshim: brainflow.BoardShim, sespath):
+        super().__init__()
+        self.board = boardshim
+        self.sespath = sespath
+        self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
+        self.start_event, self.stop_event = Event(), Event()
+
+    def prepare(self):
+        try:
+            # self.board.prepare_session()
+            sleep(10)
+            self.ready_flag.set()
+        except brainflow.BrainFlowError:
+            self.error_flag.set()
+
+    def start_stream(self):
+        pass
+
+    def get_flags(self):
+        return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
+
+    def run(self):
+        self.prepare()
+
+
 if __name__ == "__main__":
     import sys
     from PyQt5.QtWidgets import QApplication
 
     app = QApplication([])
-    data_collection_gui = DataCollectionGUI(".cache.json")
-    data_collection_gui.show()
+    data_collection_gui = DataCollectionGUI(".cache.json", (0, 0, 0), (0, 0))
     sys.exit(app.exec_())
