@@ -1,5 +1,8 @@
 import brainflow
 import json
+import numpy as np
+import os
+import pandas as pd
 import threading
 
 from datetime import datetime
@@ -8,6 +11,7 @@ from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLa
 from PyQt5.QtCore import Qt, QTimer, QTime
 from time import sleep
 from threading import Thread, Event
+from DataSim import DataSim
 
 
 class StateIndicator(QFrame):
@@ -201,6 +205,7 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
             next_active = self.stimcycle[self.current_block] == '1'
             next = "Active" if next_active else "Inactive"
             self.status_info.setText(f"Block: {self.current_block}/{self.bcount}\nNext: {next}")
+            return
         else:  # Negative current block or current block > bcount. Should never happen.
             return
         
@@ -228,6 +233,9 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
             self.stop_session()
 
     def start_session(self):
+        if not self.ready_flag.is_set():
+            return
+        self.start_event.set()
         self.current_block = 1
         self.start_time = datetime.now()
         self.timer.timeout.connect(self.update_timer)
@@ -236,6 +244,7 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
         self.stop_button.setDisabled(False)
 
     def stop_session(self):
+        self.stop_event.set()
         self.timer.stop()
         self.state_indicator.set_active(False)
         self.stop_button.setDisabled(True)
@@ -247,29 +256,75 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
 
 
 class CollectionSession(threading.Thread):
-    def __init__(self, boardshim: brainflow.BoardShim, sespath):
-        super().__init__()
+    def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
+        super().__init__(name="Collection-Thread")
         self.board = boardshim
+        self.sim = DataSim()
+        self.buffsize = buffsize
         self.sespath = sespath
         self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
         self.start_event, self.stop_event = Event(), Event()
+        self.data = np.zeros((5, 1))
 
     def prepare(self):
         try:
             # self.board.prepare_session()
-            sleep(10)
+            sleep(5)
             self.ready_flag.set()
         except brainflow.BrainFlowError:
             self.error_flag.set()
 
     def start_stream(self):
-        pass
+        print("Stream started...")
+        if not self.ready_flag.is_set():
+            return
+        # self.board.start_stream()
+        self.sim.start_stream()
 
-    def get_flags(self):
-        return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
+    def update_data(self):
+        print("Updating data...")
+        if not self.data.any():
+            # self.data = self.board.get_board_data()
+            self.data = self.sim.get_data()
+        else:
+            # self.data = np.hstack((self.data, self.board.get_board_data()))
+            self.data = np.hstack((self.data, self.sim.get_data()))
+        self.save_data()
+
+    def save_data(self):
+        print("Update saved.")
+        # pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath), "data.csv")
+        pd.DataFrame(np.copy(self.data)).to_csv("data.csv")
 
     def run(self):
         self.prepare()
+        self.start_event.wait()
+        self.start_stream()
+        self.ongoing.set()
+
+        stopped = False
+        while not (error := self.error_flag.is_set()) and not (stopped := self.stop_event.is_set()):
+            sleep(5)
+            self.update_data()
+
+        if error:
+            print("Error occurred.")
+            self.end_session()
+            return
+        if stopped:
+            print("Stopped.")
+            self.end_session()
+
+    def end_session(self):
+        self.save_data()
+        # self.board.stop_stream()
+        # self.board.release_session()
+        self.sim.stop_stream()
+        self.ready_flag.clear()
+        self.ongoing.clear()
+
+    def get_flags(self):
+        return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
 
 
 if __name__ == "__main__":

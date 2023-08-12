@@ -42,7 +42,7 @@ def create_empty_info():
             "SampleRate": 0,
             "HeadsetConfiguration": "",
             "HeadsetModel": "",
-            "BufferSize": ""
+            "BufferSize": "100000"
         },
         "ProjectName": "",
         "Description": "",
@@ -90,7 +90,7 @@ def prepare_session():
             cached_info = json.loads(c.read())
             cached_info['Annotations'] = []
         
-        cached_info['Date'] = datetime.now().strftime("%d-%m-%y")
+        cached_info['Date'] = datetime.now().strftime("%m-%d-%y")
         print("Previous info JSON found.\n")
         print(json.dumps(cached_info, indent=4))
         
@@ -115,7 +115,8 @@ def prepare_session():
     while (bid := input("Cyton (0) or CytonDaisy (2)? ")) not in ["0", "2"]:
         print("Invalid.")
 
-    return os.path.join(os.getcwd(), os.path.join(f"session_{suffix}")), com, int(bid)
+    return (os.path.join(os.getcwd(), os.path.join(f"session_{suffix}")), com, int(bid),
+            int(cached_info['HardwareParams']['BufferSize']))
 
 
 def start_collection_gui(ipath, sflags, eflags):
@@ -125,24 +126,23 @@ def start_collection_gui(ipath, sflags, eflags):
 
 
 if __name__ == "__main__":
-    sesdir, serial, bid = prepare_session()
+    sesdir, serial, bid, buffsize = prepare_session()
     infopath = os.path.join(sesdir, "info.json")
     with open(os.path.join(sesdir, "info.json"), 'r') as f:
         info = json.loads(f.read())
 
-    # collect_thread = Thread(target=start_collection, args=(serial, bid))
-    # gui_thread = Thread(target=start_collection_gui, args=(infopath,))
     params = BrainFlowInputParams()
     params.serial_port = serial  # check device manager on Windows
+
     try:
         board = BoardShim(bid, params)
     except brainflow.BrainFlowError as E:
         print(f"Error creating BoardShim object. Check serial port and board ID.\n{E}")
         sys.exit()
 
-    session = CollectionSession(board, sesdir)
+    session = CollectionSession(board, sesdir, buffsize)
     flag_list = session.get_flags()
-    gui = Thread(target=start_collection_gui, args=(infopath, flag_list[0], flag_list[1]))
+    gui = Thread(target=start_collection_gui, args=(infopath, flag_list[0], flag_list[1]), name="GUI-Thread")
     session.start()
     gui.start()
 
