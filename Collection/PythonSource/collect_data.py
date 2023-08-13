@@ -1,15 +1,13 @@
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
 from datetime import datetime
-from time import sleep, ctime
-from threading import Thread, Event
+from time import ctime
+from threading import Thread
 from DataGUI import DataCollectionGUI, CollectionSession
 from PyQt5.QtWidgets import QApplication
 
 import json
 import os
-# import numpy as np
-# import pandas as pd
 import shutil
 import sys
 
@@ -146,37 +144,3 @@ if __name__ == "__main__":
     gui = Thread(target=start_collection_gui, args=(infopath, flag_list[0], flag_list[1]), name="GUI-Thread")
     session.start()
     gui.start()
-
-'''# BrainFlow Parameters
-params = BrainFlowInputParams()
-params.serial_port = "COM3"  # check device manager on Windows
-board_id = 2  # 0 for cyton, 2 for Cyton/Daisy, there is also an option for synthetic data
-
-board = BoardShim(board_id, params)
-board.disable_board_logger()
-data_rows = board.get_eeg_channels(board_id)
-
-board.prepare_session()
-while not board.is_prepared():
-    sleep(.5)
-board.start_stream(buffer_size)
-sleep(2)  # wait for stream to stabilize
-
-"""
-Data Collection Architecture
-
-Thread 1: Collect data at regular intervals much smaller than buffer
-while (total_samples < goal):
-    get_board_data()
-    sleep(interval)
-save_file()
-
-Thread 2: Event-based GUI. Keep track of timing and mark manual annotations.
-          Change color to indicate block state.
-
-"""
-
-board.stop_stream()
-board.release_session()
-
-print("\nData collection complete.")'''
