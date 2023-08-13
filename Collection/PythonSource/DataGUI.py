@@ -7,9 +7,8 @@ import threading
 import random
 
 from datetime import datetime
-from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QWidget, QFrame
-from PyQt5.QtCore import Qt, QTimer, QTime
+from PyQt5.QtCore import QTimer, QTime
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
@@ -281,7 +280,7 @@ class CollectionSession(threading.Thread):
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
         super().__init__(name="Collection-Thread")
         self.board = boardshim
-        self.sim = DataSim()
+        # self.sim = DataSim()
         self.buffsize = buffsize
         self.sespath = sespath
         self.fname = "data_" + ctime()[-13:-8].replace(":", "") + ".csv"
@@ -292,31 +291,28 @@ class CollectionSession(threading.Thread):
 
     def prepare(self):
         try:
-            # self.board.prepare_session()
-            sleep(5)
+            self.board.prepare_session()
+            sleep(2)
             self.ready_flag.set()
         except brainflow.BrainFlowError:
             self.error_flag.set()
 
     def start_stream(self):
-        print("Stream started...")
         if not self.ready_flag.is_set():
             return
-        # self.board.start_stream()
-        self.sim.start_stream()
+        print("Stream started...")
+        self.board.start_stream()
+        # self.sim.start_stream()
 
     def update_data(self):
         print("Updating data...")
         try:
-            if random.randint(1, 10) == 4:
-                self.error_flag.set()
-                self.error_message = "RandomError: Encountered random error."
             if not self.data.any():
-                # self.data = self.board.get_board_data()
-                self.data = self.sim.get_data()
+                self.data = self.board.get_board_data()
+                # self.data = self.sim.get_data()
             else:
-                # self.data = np.hstack((self.data, self.board.get_board_data()))
-                self.data = np.hstack((self.data, self.sim.get_data()))
+                self.data = np.hstack((self.data, self.board.get_board_data()))
+                # self.data = np.hstack((self.data, self.sim.get_data()))
             self.save_data()
         except brainflow.BrainFlowError as E:
             self.error_message = f"Error: {E}"
@@ -349,20 +345,20 @@ class CollectionSession(threading.Thread):
 
     def end_session(self):
         self.save_data()
-        # self.board.stop_stream()
-        # self.board.release_session()
-        self.sim.stop_stream()
-        self.ready_flag.clear()
-        self.ongoing.clear()
+        self.board.stop_stream()
+        self.board.release_session()
+        # self.sim.stop_stream()
+        # self.ready_flag.clear()
+        # self.ongoing.clear()
 
     def get_flags(self):
         return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
 
 
-if __name__ == "__main__":
-    import sys
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication([])
-    data_collection_gui = DataCollectionGUI(".cache.json", (0, 0, 0), (0, 0))
-    sys.exit(app.exec_())
+# if __name__ == "__main__":
+#     import sys
+#     from PyQt5.QtWidgets import QApplication
+#
+#     app = QApplication([])
+#     data_collection_gui = DataCollectionGUI(".cache.json", (0, 0, 0), (0, 0))
+#     sys.exit(app.exec_())
