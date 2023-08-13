@@ -301,7 +301,7 @@ class CollectionSession(threading.Thread):
         if not self.ready_flag.is_set():
             return
         print("Stream started...")
-        self.board.start_stream()
+        self.board.start_stream(num_samples=self.buffsize)
         # self.sim.start_stream()
 
     def update_data(self):
