@@ -103,10 +103,11 @@ def prepare_session():
     else:
         print("No info JSON found. Creating a new one.\n")
         update_cache(new=True)
+        with open(cache) as c:
+            cached_info = json.loads(c.read())
     
-    # suffix = datetime.now().strftime("%d-%m-%y") + "_" + ctime()[-13:-8].replace(":", "")
-    suffix = datetime.now().strftime("%d-%m-%y")
-    os.makedirs(os.path.join(os.getcwd(), f"session_{suffix}"), exist_ok=True)
+    suffix = datetime.now().strftime("%m-%d-%y") + "_" + ctime()[-13:-8].replace(":", "")
+    os.makedirs(os.path.join(os.getcwd(), f"session_{suffix}"), exist_ok=True, mode=0o777)
     shutil.copyfile(cache, os.path.join(os.getcwd(), os.path.join(f"session_{suffix}"), "info.json"))
 
     print("Board setup...")

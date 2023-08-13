@@ -4,18 +4,18 @@ import numpy as np
 import os
 import pandas as pd
 import threading
+import random
 
 from datetime import datetime
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QWidget, QFrame
 from PyQt5.QtCore import Qt, QTimer, QTime
-from time import sleep
+from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
 
 
 class StateIndicator(QFrame):
-
     def __init__(self, active_color, inactive_color, dia=20):
         super().__init__()
         self.setFixedSize(dia, dia)
@@ -150,7 +150,7 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
 
     def wait_for_ready(self):
         i = 0
-        while not (ready := self.ready_flag.is_set()) and not (error := self.error_flag.is_set()):
+        while not (ready := self.ready_flag.is_set()) and not self.error_flag.is_set():
             self.session_status = "Preparing" + "." * i
             self.set_info()
             i = (i+1) % 4
@@ -159,9 +159,17 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
             self.session_status = "Ready"
             self.set_info()
             self.start_button.setDisabled(False)
-        elif error:
-            self.session_status = "Error: Check logs"
+        elif self.error_flag.is_set():
+            self.session_status = "Error: Failed to prepare session. Check logs."
             self.set_info()
+
+    def show_ongoing(self):
+        i = 0
+        while not self.stop_event.is_set() and not self.error_flag.is_set():
+            self.session_status = "Collecting" + "." * i
+            self.set_info()
+            i = (i+1) % 4
+            sleep(0.5)
 
     def add_annotation(self, time, note):
         self.info['Annotations'].append([time, note])
@@ -215,6 +223,12 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
             self.state_indicator.set_active(False)
 
     def update_timer(self):
+        if self.error_flag.is_set():
+            self.session_status = "Error"
+            self.set_info()
+            self.stop_session()
+            return
+
         elapsed_time = datetime.now() - self.start_time
         elapsed_seconds = int(elapsed_time.total_seconds())
         remaining_seconds = max(0, self.blength - (elapsed_seconds % self.blength))
@@ -228,6 +242,7 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
     def update_block(self, elapsed):
         self.current_block = int(elapsed.total_seconds() / self.blength) + 1
         if self.current_block > self.bcount:
+            self.session_status = "Complete"
             self.current_block = self.bcount
             self.timer_label.setText("00:00")
             self.stop_session()
@@ -235,6 +250,8 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
     def start_session(self):
         if not self.ready_flag.is_set():
             return
+        ongoing_thread = Thread(target=self.show_ongoing)
+        ongoing_thread.start()
         self.start_event.set()
         self.current_block = 1
         self.start_time = datetime.now()
@@ -249,6 +266,11 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
         self.state_indicator.set_active(False)
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
+        if self.error_flag.is_set():
+            self.session_status = "Error"
+        else:
+            self.session_status = "Complete"
+        self.set_info()
 
     def tlabel(self):
         self.t += 1
@@ -262,9 +284,11 @@ class CollectionSession(threading.Thread):
         self.sim = DataSim()
         self.buffsize = buffsize
         self.sespath = sespath
+        self.fname = "data_" + ctime()[-13:-8].replace(":", "") + ".csv"
         self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
         self.start_event, self.stop_event = Event(), Event()
         self.data = np.zeros((5, 1))
+        self.error_message = ""
 
     def prepare(self):
         try:
@@ -283,18 +307,26 @@ class CollectionSession(threading.Thread):
 
     def update_data(self):
         print("Updating data...")
-        if not self.data.any():
-            # self.data = self.board.get_board_data()
-            self.data = self.sim.get_data()
-        else:
-            # self.data = np.hstack((self.data, self.board.get_board_data()))
-            self.data = np.hstack((self.data, self.sim.get_data()))
-        self.save_data()
+        try:
+            if random.randint(1, 10) == 4:
+                self.error_flag.set()
+                self.error_message = "RandomError: Encountered random error."
+            if not self.data.any():
+                # self.data = self.board.get_board_data()
+                self.data = self.sim.get_data()
+            else:
+                # self.data = np.hstack((self.data, self.board.get_board_data()))
+                self.data = np.hstack((self.data, self.sim.get_data()))
+            self.save_data()
+        except brainflow.BrainFlowError as E:
+            self.error_message = f"Error: {E}"
+            self.error_flag.set()
+            self.end_session()
+            return
 
     def save_data(self):
         print("Update saved.")
-        # pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath), "data.csv")
-        pd.DataFrame(np.copy(self.data)).to_csv("data.csv")
+        pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
 
     def run(self):
         self.prepare()
@@ -308,7 +340,7 @@ class CollectionSession(threading.Thread):
             self.update_data()
 
         if error:
-            print("Error occurred.")
+            print(self.error_message)
             self.end_session()
             return
         if stopped:
