@@ -103,7 +103,11 @@ def prepare_session():
         update_cache(new=True)
         with open(cache) as c:
             cached_info = json.loads(c.read())
-    
+
+    if len(cached_info['SessionParams']['StimCycle']) != int(cached_info['SessionParams']['BlockCount']):
+        print("Invalid session parameters. Stim cycle length must equal the block count.")
+        sys.exit()
+
     suffix = datetime.now().strftime("%m-%d-%y") + "_" + ctime()[-13:-8].replace(":", "")
     os.makedirs(os.path.join(os.getcwd(), f"session_{suffix}"), exist_ok=True, mode=0o777)
     shutil.copyfile(cache, os.path.join(os.getcwd(), os.path.join(f"session_{suffix}"), "info.json"))
