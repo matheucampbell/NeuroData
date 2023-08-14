@@ -36,3 +36,5 @@ QFrame {
     background-color: #1d2324;
     border-radius: 10px;
 }
+#CollectFrame { background-color: #43484d }
+#InfoFrame { background-color: #43484d }

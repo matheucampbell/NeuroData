@@ -1,4 +1,5 @@
 import brainflow
+from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
 import numpy as np
 import os
@@ -7,12 +8,14 @@ import threading
 import random
 
 from datetime import datetime
-from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QWidget, QFrame
-from PyQt5.QtCore import QTimer, QTime
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QStackedWidget, QFrame
+from PyQt5.QtCore import QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
 
+# Multi-page structure adapted from 
+# https://stackoverflow.com/questions/56867107/how-to-make-a-multi-page-application-in-pyqt5
 
 class CollectionSession(threading.Thread):
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
@@ -115,17 +118,90 @@ class StateIndicator(QFrame):
             self.setStyleSheet(f"#StateIndicator {{ background-color: {self.inactive}; border-radius: {self.dia//2}px; }}")
 
 
-class DataCollectionGUI(QMainWindow, threading.Thread):
-    def __init__(self, infopath, csession: CollectionSession):
+class PageWindow(QFrame):
+    gosig = pyqtSignal(str)
+
+    def goto(self, name):
+        self.gosig.emit(name),
+
+
+class DataCollectionGUI(QMainWindow):
+    def __init__(self):
         super().__init__()
-        self.csession = csession
+        self.pages = {}
+        self.setWindowTitle("Data Collection GUI")
+        self.setFixedWidth(500)
+        self.stack = QStackedWidget()
+        self.setCentralWidget(self.stack)
+
+        cwindow = CollectionWindow()
+        self.register(cwindow, "collect")
+        self.register(InfoWindow(cwindow), "info")
+        self.stack.setCurrentWidget(self.pages['info'])
+
+        with open("style.txt", 'r') as f:
+            self.setStyleSheet(f.read())
+        self.show()
+
+    def register(self, widget, name):
+        self.pages[name] = widget
+        self.stack.addWidget(widget)
+        widget.gosig.connect(self.goto)
+
+    @pyqtSlot(str)
+    def goto(self, name):
+        widget = self.pages[name]
+        self.stack.setCurrentWidget(widget)
+
+
+class InfoWindow(PageWindow):
+    def __init__(self, collection_window):
+        super().__init__()
+        self.setObjectName("InfoFrame")
+        self.sname_label = QLabel("Subject Name")
+        self.sname_field = QLineEdit()
+        self.pname_label = QLabel("Project Name")
+        self.pname_field = QLineEdit()
+        self.colwin = collection_window
+
+        self.confirm_button = QPushButton("Confirm")
+        self.confirm_button.clicked.connect(self.confirm_info)
+        self.confirm_button.clicked.connect(self.goto_collection)
+        self.init()
+
+    def init(self):
+        layout = QGridLayout()
+        layout.addWidget(self.sname_label, 0, 0)
+        layout.addWidget(self.sname_field, 0, 1)
+        layout.addWidget(self.pname_label, 1, 0)
+        layout.addWidget(self.pname_field, 1, 1)
+        layout.addWidget(self.confirm_button, 2, 0, 1, 2)
+        self.setLayout(layout)
+    
+    def confirm_info(self):
+        session = CollectionSession(2,
+                                    os.path.join(os.getcwd(), "session_08-14-23_1241"),
+                                    10000)
+        ipath = os.path.join(os.getcwd(), "session_08-14-23_1241", "info.json")
+        self.colwin.activate(ipath, session)
+    
+    def goto_collection(self):
+        self.goto("collect")
+
+
+class CollectionWindow(PageWindow, threading.Thread):
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("CollectFrame")
+
+    def activate(self, infopath, csession):
         csession.start()
 
         self.infopath = infopath
         with open(infopath, 'r') as i:
             self.info = json.loads(i.read())
 
-        flags = self.csession.get_flags()
+        flags = csession.get_flags()
         # Only set by collection thread to indicate board status
         self.ready_flag, self.ongoing, self.error_flag = flags[0]
         # Set by GUI thread to start collection, but stop may be set by either collection or GUI thread
@@ -169,7 +245,6 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
                                     f"Cycle: {self.stimcycle}")
         
         # Buttons and top level widgets
-        self.central_widget = QWidget(self)
         self.entry_button = QPushButton("Mark Event")
         self.entry_annotation = QLineEdit(self)
         self.entry_annotation.returnPressed.connect(self.on_enter_annotation)
@@ -180,10 +255,6 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
         self.init()
 
     def init(self):
-        self.setWindowTitle("Data Collection GUI")
-        self.setFixedWidth(500)
-        self.setCentralWidget(self.central_widget)
-
         layout = QVBoxLayout()
         gridlayout = QGridLayout()
         gridlayout.setColumnMinimumWidth(0, 5)
@@ -225,13 +296,11 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
         self.stop_button.clicked.connect(self.stop_session)
         self.stop_button.setDisabled(True)
 
-        self.central_widget.setLayout(layout)
+        self.setLayout(layout)
         self.entry_annotation.setPlaceholderText("t0")
         self.set_info()
         self.update_status()
-        self.show()
-        with open("style.txt", 'r') as f:
-            self.setStyleSheet(f.read())
+        # self.show()
         ready_thread = Thread(target=self.wait_for_ready)
         ready_thread.start()
 
@@ -363,3 +432,9 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
     def tlabel(self):
         self.t += 1
         return f"t{self.t}"
+
+
+if __name__ == "__main__":
+    app = QApplication([])
+    gui = DataCollectionGUI()
+    app.exec_()
