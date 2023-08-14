@@ -67,6 +67,8 @@ def update_cache(new=False, cachepath=None):
         with open(cachepath, 'r') as f:
             info = json.loads(f.read())
     
+    info['Date'] = datetime.now().strftime("%m-%d-%y")
+    info['Time'] = datetime.now().strftime("%H:%M")
     for key, val in info.items():
         if type(info[key]) == dict:
             for k, v in info[key].items():
@@ -89,6 +91,7 @@ def prepare_session():
             cached_info['Annotations'] = []
         
         cached_info['Date'] = datetime.now().strftime("%m-%d-%y")
+        cached_info['Time'] = datetime.now().strftime("%H:%M")
         print("Previous info JSON found.\n")
         print(json.dumps(cached_info, indent=4))
         
@@ -108,7 +111,7 @@ def prepare_session():
     os.makedirs(os.path.join(os.getcwd(), f"session_{suffix}"), exist_ok=True, mode=0o777)
     shutil.copyfile(cache, os.path.join(os.getcwd(), os.path.join(f"session_{suffix}"), "info.json"))
 
-    print("Board setup...")
+    print("\n------- BOARD SETUP -------\n")
     while (com := input("Which serial port is the board connected to? ")) == "":
         print("Invalid.")
     while (bid := input("Cyton (0) or CytonDaisy (2)? ")) not in ["0", "2"]:

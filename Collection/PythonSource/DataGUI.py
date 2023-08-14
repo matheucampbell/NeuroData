@@ -7,9 +7,8 @@ import threading
 import random
 
 from datetime import datetime
-from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QWidget, QFrame
-from PyQt5.QtCore import Qt, QTimer, QTime
+from PyQt5.QtCore import QTimer, QTime
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
@@ -217,6 +216,8 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
         layout.addLayout(gridlayout)
         layout.addWidget(self.entry_annotation)
         layout.addWidget(self.entry_button)
+        self.entry_button.clicked.connect(self.on_enter_annotation)
+        self.entry_button.setDisabled(True)
         layout.addWidget(self.start_button)
         self.start_button.clicked.connect(self.start_session)
         self.start_button.setDisabled(True)
@@ -343,8 +344,9 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
         self.start_time = datetime.now()
         self.timer.timeout.connect(self.update_timer)
         self.timer.start(10)  # Timer interval in milliseconds
+        self.entry_button.setDisabled(False)
         self.start_button.setDisabled(True)
-        self.stop_button.setDisabled(False)
+        self.stop_button.setDisabled(False)        
 
     def stop_session(self):
         self.stop_event.set()
@@ -361,12 +363,3 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
     def tlabel(self):
         self.t += 1
         return f"t{self.t}"
-
-
-if __name__ == "__main__":
-    import sys
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication([])
-    data_collection_gui = DataCollectionGUI(".cache.json", (0, 0, 0), (0, 0))
-    sys.exit(app.exec_())
