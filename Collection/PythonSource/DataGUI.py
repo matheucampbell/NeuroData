@@ -1,7 +1,6 @@
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
-import multiprocessing
 import numpy as np
 import os
 import pandas as pd
@@ -67,11 +66,10 @@ class CollectionSession(Thread):
         try:
             # self.board.prepare_session()
             # proc = multiprocessing.Process(target=self.board.prepare_session)
-            proc = multiprocessing.Process(target=sleep, args=(5,))
+            proc = Thread(target=sleep, args=(5,), daemon=True)
             proc.start()
-            while (proc.is_alive()):
+            while proc.is_alive():
                 if self.stop_event.is_set():
-                    proc.terminate()
                     raise CollectionSession.PrepInterruptedException("Window closed during board preparation.")
             self.ready_flag.set()
         except brainflow.BrainFlowError as E:
