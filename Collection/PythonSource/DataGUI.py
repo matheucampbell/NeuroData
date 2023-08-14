@@ -15,6 +15,88 @@ from threading import Thread, Event
 from DataSim import DataSim
 
 
+class CollectionSession(threading.Thread):
+    def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
+        super().__init__(name="Collection-Thread")
+        self.board = boardshim
+        self.sim = DataSim()
+        self.buffsize = buffsize
+        self.sespath = sespath
+        self.fname = "data_" + ctime()[-13:-8].replace(":", "") + ".csv"
+        self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
+        self.start_event, self.stop_event = Event(), Event()
+        self.data = np.zeros((5, 1))
+        self.error_message = ""
+
+    def prepare(self):
+        try:
+            # self.board.prepare_session()
+            sleep(5)
+            self.ready_flag.set()
+        except brainflow.BrainFlowError:
+            self.error_flag.set()
+
+    def start_stream(self):
+        print("Stream started...")
+        if not self.ready_flag.is_set():
+            return
+        # self.board.start_stream()
+        self.sim.start_stream()
+
+    def update_data(self):
+        print("Updating data...")
+        try:
+            if random.randint(1, 10) == 4:
+                self.error_flag.set()
+                self.error_message = "RandomError: Encountered random error."
+            if not self.data.any():
+                # self.data = self.board.get_board_data()
+                self.data = self.sim.get_data()
+            else:
+                # self.data = np.hstack((self.data, self.board.get_board_data()))
+                self.data = np.hstack((self.data, self.sim.get_data()))
+            self.save_data()
+        except brainflow.BrainFlowError as E:
+            self.error_message = f"Error: {E}"
+            self.error_flag.set()
+            self.end_session()
+            return
+
+    def save_data(self):
+        print("Update saved.")
+        pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
+
+    def run(self):
+        self.prepare()
+        self.start_event.wait()
+        self.start_stream()
+        self.ongoing.set()
+
+        stopped = False
+        while not (error := self.error_flag.is_set()) and not (stopped := self.stop_event.is_set()):
+            sleep(5)
+            self.update_data()
+
+        if error:
+            print(self.error_message)
+            self.end_session()
+            return
+        if stopped:
+            print("Stopped.")
+            self.end_session()
+
+    def end_session(self):
+        self.save_data()
+        # self.board.stop_stream()
+        # self.board.release_session()
+        self.sim.stop_stream()
+        self.ready_flag.clear()
+        self.ongoing.clear()
+
+    def get_flags(self):
+        return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
+
+
 class StateIndicator(QFrame):
     def __init__(self, active_color, inactive_color, dia=20):
         super().__init__()
@@ -35,16 +117,20 @@ class StateIndicator(QFrame):
 
 
 class DataCollectionGUI(QMainWindow, threading.Thread):
-    def __init__(self, infopath, status_flags, event_flags):
+    def __init__(self, infopath, csession: CollectionSession):
         super().__init__()
+        self.csession = csession
+        csession.start()
+
         self.infopath = infopath
         with open(infopath, 'r') as i:
             self.info = json.loads(i.read())
 
+        flags = self.csession.get_flags()
         # Only set by collection thread to indicate board status
-        self.ready_flag, self.ongoing, self.error_flag = status_flags
+        self.ready_flag, self.ongoing, self.error_flag = flags[0]
         # Set by GUI thread to start collection, but stop may be set by either collection or GUI thread
-        self.start_event, self.stop_event = event_flags
+        self.start_event, self.stop_event = flags[1]
 
         self.session_status = "Preparing"
         self.bcount = int(self.info['SessionParams']['BlockCount'])
@@ -275,88 +361,6 @@ class DataCollectionGUI(QMainWindow, threading.Thread):
     def tlabel(self):
         self.t += 1
         return f"t{self.t}"
-
-
-class CollectionSession(threading.Thread):
-    def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
-        super().__init__(name="Collection-Thread")
-        self.board = boardshim
-        self.sim = DataSim()
-        self.buffsize = buffsize
-        self.sespath = sespath
-        self.fname = "data_" + ctime()[-13:-8].replace(":", "") + ".csv"
-        self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
-        self.start_event, self.stop_event = Event(), Event()
-        self.data = np.zeros((5, 1))
-        self.error_message = ""
-
-    def prepare(self):
-        try:
-            # self.board.prepare_session()
-            sleep(5)
-            self.ready_flag.set()
-        except brainflow.BrainFlowError:
-            self.error_flag.set()
-
-    def start_stream(self):
-        print("Stream started...")
-        if not self.ready_flag.is_set():
-            return
-        # self.board.start_stream()
-        self.sim.start_stream()
-
-    def update_data(self):
-        print("Updating data...")
-        try:
-            if random.randint(1, 10) == 4:
-                self.error_flag.set()
-                self.error_message = "RandomError: Encountered random error."
-            if not self.data.any():
-                # self.data = self.board.get_board_data()
-                self.data = self.sim.get_data()
-            else:
-                # self.data = np.hstack((self.data, self.board.get_board_data()))
-                self.data = np.hstack((self.data, self.sim.get_data()))
-            self.save_data()
-        except brainflow.BrainFlowError as E:
-            self.error_message = f"Error: {E}"
-            self.error_flag.set()
-            self.end_session()
-            return
-
-    def save_data(self):
-        print("Update saved.")
-        pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
-
-    def run(self):
-        self.prepare()
-        self.start_event.wait()
-        self.start_stream()
-        self.ongoing.set()
-
-        stopped = False
-        while not (error := self.error_flag.is_set()) and not (stopped := self.stop_event.is_set()):
-            sleep(5)
-            self.update_data()
-
-        if error:
-            print(self.error_message)
-            self.end_session()
-            return
-        if stopped:
-            print("Stopped.")
-            self.end_session()
-
-    def end_session(self):
-        self.save_data()
-        # self.board.stop_stream()
-        # self.board.release_session()
-        self.sim.stop_stream()
-        self.ready_flag.clear()
-        self.ongoing.clear()
-
-    def get_flags(self):
-        return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
 
 
 if __name__ == "__main__":

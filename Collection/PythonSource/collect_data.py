@@ -118,12 +118,6 @@ def prepare_session():
             int(cached_info['HardwareParams']['BufferSize']))
 
 
-def start_collection_gui(ipath, sflags, eflags):
-    app = QApplication([])
-    gui = DataCollectionGUI(ipath, sflags, eflags)
-    app.exec_()
-
-
 if __name__ == "__main__":
     sesdir, serial, bid, buffsize = prepare_session()
     infopath = os.path.join(sesdir, "info.json")
@@ -140,7 +134,6 @@ if __name__ == "__main__":
         sys.exit()
 
     session = CollectionSession(board, sesdir, buffsize)
-    flag_list = session.get_flags()
-    gui = Thread(target=start_collection_gui, args=(infopath, flag_list[0], flag_list[1]), name="GUI-Thread")
-    session.start()
-    gui.start()
+    app = QApplication([])
+    gui = DataCollectionGUI(infopath, session)
+    app.exec_()
