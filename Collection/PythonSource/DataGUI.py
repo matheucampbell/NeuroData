@@ -8,7 +8,7 @@ import threading
 import random
 
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QStackedWidget, QFrame
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QStackedWidget, QFrame, QFileDialog
 from PyQt5.QtCore import QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
@@ -130,7 +130,7 @@ class DataCollectionGUI(QMainWindow):
         super().__init__()
         self.pages = {}
         self.setWindowTitle("Data Collection GUI")
-        self.setFixedWidth(500)
+        # self.setFixedWidth(500)
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
@@ -158,24 +158,106 @@ class InfoWindow(PageWindow):
     def __init__(self, collection_window):
         super().__init__()
         self.setObjectName("InfoFrame")
-        self.sname_label = QLabel("Subject Name")
-        self.sname_field = QLineEdit()
-        self.pname_label = QLabel("Project Name")
-        self.pname_field = QLineEdit()
-        self.colwin = collection_window
+        
+        # Directory Row
+        self.dirlabel = QLabel("Session directory: ")
+        self.curdir = QLabel(os.getcwd())
+        self.dir_select = QPushButton("Browse")
+        self.dir_select.clicked.connect(self.get_directory)
+        self.dirframe = QFrame()
+        self.dirframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
+        # Session Parameters
+        self.sname = QLabel("Subject name:")
+        self.pname = QLabel("Project name:")
+        self.rtype = QLabel("Response type:")
+        self.blength = QLabel("Block length:")
+        self.bcount = QLabel("Block count:")
+        self.stimcycle = QLabel("Stimulus cycle:")
+        self.description = QLabel("Description")
+        self.fsname = QLineEdit()
+        self.fpname = QLineEdit()
+        self.frtype = QLineEdit()
+        self.fblength = QLineEdit()
+        self.fbcount = QLineEdit()
+        self.fstimcycle = QLineEdit()
+        self.fdescription = QLineEdit()
+        self.sesframe = QFrame()
+        self.sesframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
+
+        # Hardware Parameters
+        self.srate = QLabel("Sampling rate:")
+        self.config = QLabel("Headset configuration:")
+        self.model = QLabel("Headset model:")
+        self.buffsize = QLabel("Buffer size:")
+        self.serialport = QLabel("Serial port: ")
+        self.fsrate = QLineEdit()
+        self.fconfig = QLineEdit()
+        self.fmodel = QLineEdit()
+        self.fbuffsize = QLineEdit()
+        self.fserialport = QLineEdit()
+        self.hardframe = QFrame()
+        self.hardframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
+
+        # Confirmation
         self.confirm_button = QPushButton("Confirm")
         self.confirm_button.clicked.connect(self.confirm_info)
         self.confirm_button.clicked.connect(self.goto_collection)
+
+        self.dir = os.getcwd()
+        self.colwin = collection_window
         self.init()
 
     def init(self):
-        layout = QGridLayout()
-        layout.addWidget(self.sname_label, 0, 0)
-        layout.addWidget(self.sname_field, 0, 1)
-        layout.addWidget(self.pname_label, 1, 0)
-        layout.addWidget(self.pname_field, 1, 1)
-        layout.addWidget(self.confirm_button, 2, 0, 1, 2)
+        layout = QVBoxLayout()
+        
+        # Directory Selector
+        dirlayout = QGridLayout()
+        dirlayout.addWidget(self.dirlabel, 0, 0, 1, 2)
+        dirlayout.addWidget(self.curdir, 0, 2)
+        dirlayout.addWidget(self.dir_select, 0, 3)
+        self.dirframe.setLayout(dirlayout)
+        layout.addWidget(self.dirframe)
+
+        # Parameter layout
+        middlebar = QHBoxLayout()
+
+        # Session Parameters
+        seslayout = QGridLayout()
+        seslayout.addWidget(self.sname, 0, 0)
+        seslayout.addWidget(self.fsname, 0, 1)
+        seslayout.addWidget(self.pname, 1, 0)
+        seslayout.addWidget(self.fpname, 1, 1)
+        seslayout.addWidget(self.rtype, 2, 0)
+        seslayout.addWidget(self.frtype, 2, 1)
+        seslayout.addWidget(self.blength, 3, 0)
+        seslayout.addWidget(self.fblength, 3, 1)
+        seslayout.addWidget(self.bcount, 4, 0)
+        seslayout.addWidget(self.fbcount, 4, 1)
+        seslayout.addWidget(self.stimcycle, 5, 0)
+        seslayout.addWidget(self.fstimcycle, 5, 1)
+        seslayout.addWidget(self.description, 6, 0, 1, 2)
+        seslayout.addWidget(self.fdescription, 7, 0, 1, 2)
+        self.sesframe.setLayout(seslayout)
+        middlebar.addWidget(self.sesframe)
+
+        # Hardware Parameters
+        hardlayout = QGridLayout()
+        hardlayout.addWidget(self.srate, 0, 0)
+        hardlayout.addWidget(self.fsrate, 0, 1)
+        hardlayout.addWidget(self.config, 1, 0)
+        hardlayout.addWidget(self.fconfig, 1, 1)
+        hardlayout.addWidget(self.model, 2, 0)
+        hardlayout.addWidget(self.fmodel, 2, 1)
+        hardlayout.addWidget(self.buffsize, 3, 0)
+        hardlayout.addWidget(self.fbuffsize, 3, 1)
+        hardlayout.addWidget(self.serialport, 4, 0)
+        hardlayout.addWidget(self.fserialport, 4, 1)
+        self.hardframe.setLayout(hardlayout)
+        middlebar.addWidget(self.hardframe)
+
+        layout.addLayout(middlebar)
+        layout.addWidget(self.confirm_button)
         self.setLayout(layout)
     
     def confirm_info(self):
@@ -185,6 +267,10 @@ class InfoWindow(PageWindow):
         ipath = os.path.join(os.getcwd(), "session_08-14-23_1241", "info.json")
         self.colwin.activate(ipath, session)
     
+    def get_directory(self):
+        dir = QFileDialog.getExistingDirectory(self, "Choose directory")
+        self.curdir.setText(dir)
+
     def goto_collection(self):
         self.goto("collect")
 
@@ -224,8 +310,8 @@ class CollectionWindow(PageWindow, threading.Thread):
         self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
         self.info_labels = QLabel(parent=self.info_panel)
-        self.info_labels.setText("Subject:\nProject:\nResponse Type:\nStimulus Type:\n\nSampling Rate:\n" + 
-                                 "Configuration:\nModel:\n\nSession Status:")
+        self.info_labels.setText("Subject:\nProject:\nResponse type:\nStimulus type:\n\nSampling rate:\n" + 
+                                 "Configuration:\nModel:\n\nSession status:")
         self.info_labels.setObjectName('FieldLabels')
         self.info_text = QLabel(parent=self.info_panel)
 
