@@ -1,11 +1,12 @@
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
+import multiprocessing
 import numpy as np
 import os
 import pandas as pd
-import threading
 import random
+import threading
 
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, 
@@ -46,9 +47,12 @@ def create_empty_info():
         }
 
 
-class CollectionSession(threading.Thread):
+class CollectionSession(Thread):
+    class PrepInterruptedException(Exception):
+        """Raised by user closing the window during board preparation."""
+
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
-        super().__init__(name="Collection-Thread")
+        super().__init__(name="CollectionThread")
         self.board = boardshim
         self.sim = DataSim()
         self.buffsize = buffsize
@@ -62,11 +66,19 @@ class CollectionSession(threading.Thread):
     def prepare(self):
         try:
             # self.board.prepare_session()
-            sleep(5)
+            # proc = multiprocessing.Process(target=self.board.prepare_session)
+            proc = multiprocessing.Process(target=sleep, args=(5,))
+            proc.start()
+            while (proc.is_alive()):
+                if self.stop_event.is_set():
+                    proc.terminate()
+                    raise CollectionSession.PrepInterruptedException("Window closed during board preparation.")
             self.ready_flag.set()
         except brainflow.BrainFlowError as E:
             self.error_message = str(E)
             self.error_flag.set()
+        except CollectionSession.PrepInterruptedException as E:
+            return
 
     def start_stream(self):
         print("Stream started...")
@@ -100,7 +112,13 @@ class CollectionSession(threading.Thread):
 
     def run(self):
         self.prepare()
-        self.start_event.wait()
+
+        while not self.start_event.is_set() and not self.stop_event.is_set():
+            sleep(0.1)
+        if self.stop_event.is_set():
+            print("over")
+            return
+        
         self.start_stream()
         self.ongoing.set()
 
@@ -124,7 +142,7 @@ class CollectionSession(threading.Thread):
         self.sim.stop_stream()
         self.ready_flag.clear()
         self.ongoing.clear()
-    
+
     def get_error(self):
         return self.error_message
 
@@ -185,6 +203,16 @@ class DataCollectionGUI(QMainWindow):
     def goto(self, name):
         widget = self.pages[name]
         self.stack.setCurrentWidget(widget)
+
+    def closeEvent(self, event):
+        for thread in threading.enumerate():
+            if thread.is_alive():
+                print(thread.name)
+        cwin = self.pages["collect"]
+        if self.stack.currentWidget() == cwin:
+            cwin.stop_session()
+
+        event.accept()
 
 
 class InfoWindow(PageWindow):
@@ -426,7 +454,7 @@ class InfoWindow(PageWindow):
         self.goto("collect")
 
 
-class CollectionWindow(PageWindow, threading.Thread):
+class CollectionWindow(PageWindow):
     def __init__(self):
         super().__init__()
         self.setObjectName("CollectFrame")
@@ -495,32 +523,26 @@ class CollectionWindow(PageWindow, threading.Thread):
     def init(self):
         layout = QVBoxLayout()
         gridlayout = QGridLayout()
-        gridlayout.setColumnMinimumWidth(0, 5)
-        gridlayout.setColumnMinimumWidth(2, 2)
-        gridlayout.setColumnMinimumWidth(4, 5)
-        gridlayout.setRowMinimumHeight(0, 5)
-        gridlayout.setRowMinimumHeight(2, 5)
-        gridlayout.setRowMinimumHeight(4, 5)
 
         infolayout = QHBoxLayout()
         infolayout.addWidget(self.info_labels)
         infolayout.addWidget(self.info_text)
         self.info_panel.setLayout(infolayout)
-        gridlayout.addWidget(self.info_panel, 1, 1, 1, 3)
+        gridlayout.addWidget(self.info_panel, 0, 0, 1, 2)
 
         statuslayout = QGridLayout()
         statuslayout.addWidget(self.state_indicator, 0, 0)
         statuslayout.addWidget(self.status_label, 0, 1)
-        statuslayout.addWidget(self.status_info, 1, 0, 1, 3)
+        statuslayout.addWidget(self.status_info, 1, 0, 1, 2)
         statuslayout.addWidget(self.timer_label, 1, 3)
         statuslayout.addWidget(self.stimer_label, 0, 3)
         self.status_panel.setLayout(statuslayout)
-        gridlayout.addWidget(self.status_panel, 3, 1)
+        gridlayout.addWidget(self.status_panel, 1, 0)
 
         sessionlayout = QVBoxLayout()
         sessionlayout.addWidget(self.session_label)
         self.session_panel.setLayout(sessionlayout)
-        gridlayout.addWidget(self.session_panel, 3, 3)
+        gridlayout.addWidget(self.session_panel, 1, 1)
 
         layout.addLayout(gridlayout)
         layout.addWidget(self.entry_annotation)
@@ -538,8 +560,7 @@ class CollectionWindow(PageWindow, threading.Thread):
         self.entry_annotation.setPlaceholderText("t0")
         self.set_info()
         self.update_status()
-        # self.show()
-        ready_thread = Thread(target=self.wait_for_ready)
+        ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
 
     def wait_for_ready(self):
@@ -643,7 +664,7 @@ class CollectionWindow(PageWindow, threading.Thread):
     def start_session(self):
         if not self.ready_flag.is_set():
             return
-        ongoing_thread = Thread(target=self.show_ongoing)
+        ongoing_thread = Thread(target=self.show_ongoing, name="OngoingThread")
         ongoing_thread.start()
         self.start_event.set()
         self.current_block = 1
