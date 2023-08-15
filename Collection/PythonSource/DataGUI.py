@@ -396,8 +396,7 @@ class InfoWindow(PageWindow):
         info['SessionParams']['BlockLength'] = blength
         info['SessionParams']['BlockCount'] = bcount
         info['SessionParams']['StimCycle'] = self.fstimcycle.text()
-        info['SessionParams']['SubjectName'] = self.fstimcycle.text()
-        info['HardwareParams']['HeadsetConfiguration'] = self.fsname.text()
+        info['HardwareParams']['HeadsetConfiguration'] = self.fconfig.currentText()
         model = self.fmodel.currentText()
         info['HardwareParams']['HeadsetModel'] = model
         info['HardwareParams']['SampleRate'] = str(self.boardmap[model][1])
