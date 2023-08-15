@@ -65,8 +65,8 @@ class CollectionSession(Thread):
     def prepare(self):
         try:
             # self.board.prepare_session()
-            # proc = multiprocessing.Process(target=self.board.prepare_session)
-            proc = Thread(target=sleep, args=(5,), daemon=True)
+            # proc = threading.Thread(target=self.board.prepare_session, daemon=True, name="PrepThread")
+            proc = Thread(target=sleep, args=(5,), daemon=True, name="PrepThread")
             proc.start()
             while proc.is_alive():
                 if self.stop_event.is_set():
@@ -75,7 +75,7 @@ class CollectionSession(Thread):
         except brainflow.BrainFlowError as E:
             self.error_message = str(E)
             self.error_flag.set()
-        except CollectionSession.PrepInterruptedException as E:
+        except CollectionSession.PrepInterruptedException:
             return
 
     def start_stream(self):
@@ -114,7 +114,6 @@ class CollectionSession(Thread):
         while not self.start_event.is_set() and not self.stop_event.is_set():
             sleep(0.1)
         if self.stop_event.is_set():
-            print("over")
             return
         
         self.start_stream()
@@ -203,13 +202,9 @@ class DataCollectionGUI(QMainWindow):
         self.stack.setCurrentWidget(widget)
 
     def closeEvent(self, event):
-        for thread in threading.enumerate():
-            if thread.is_alive():
-                print(thread.name)
         cwin = self.pages["collect"]
         if self.stack.currentWidget() == cwin:
             cwin.stop_session()
-
         event.accept()
 
 
@@ -364,7 +359,7 @@ class InfoWindow(PageWindow):
             self.errlabel.setText(f"Error: {res[1]}")
             return
         else:
-            ipath = self.save_info()
+            self.save_info()
         
         params = BrainFlowInputParams()
         params.serial_port = self.fserialport.text()
@@ -375,6 +370,7 @@ class InfoWindow(PageWindow):
             self.errlabel.setText(
                 "Error creating BoardShim object.\n{E}"
             )
+            return
 
         session = CollectionSession(board, self.sespath, int(self.fbuffsize.text()))
         self.colwin.activate(os.path.join(self.sespath, "info.json"), session)
@@ -563,7 +559,7 @@ class CollectionWindow(PageWindow):
 
     def wait_for_ready(self):
         i = 0
-        while not (ready := self.ready_flag.is_set()) and not self.error_flag.is_set():
+        while not (ready := self.ready_flag.is_set()) and not self.error_flag.is_set() and not self.stop_event.is_set():
             self.session_status = "Preparing" + "." * i
             self.set_info()
             i = (i+1) % 4
