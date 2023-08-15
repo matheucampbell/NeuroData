@@ -64,7 +64,8 @@ class CollectionSession(threading.Thread):
             # self.board.prepare_session()
             sleep(5)
             self.ready_flag.set()
-        except brainflow.BrainFlowError:
+        except brainflow.BrainFlowError as E:
+            self.error_message = str(E)
             self.error_flag.set()
 
     def start_stream(self):
@@ -77,9 +78,9 @@ class CollectionSession(threading.Thread):
     def update_data(self):
         print("Updating data...")
         try:
-            if random.randint(1, 10) == 4:
-                self.error_flag.set()
+            if random.randint(1, 5) == 10:
                 self.error_message = "RandomError: Encountered random error."
+                self.error_flag.set()
             if not self.data.any():
                 # self.data = self.board.get_board_data()
                 self.data = self.sim.get_data()
@@ -123,6 +124,9 @@ class CollectionSession(threading.Thread):
         self.sim.stop_stream()
         self.ready_flag.clear()
         self.ongoing.clear()
+    
+    def get_error(self):
+        return self.error_message
 
     def get_flags(self):
         return (self.ready_flag, self.ongoing, self.error_flag), (self.start_event, self.stop_event)
@@ -236,7 +240,7 @@ class InfoWindow(PageWindow):
         self.errorframe = QFrame()
         self.datelabel = QLabel(f"Date: {self.date}")
         self.timelabel = QLabel(f"Time: {self.time}")
-        self.errlabel = QLabel("Error:")
+        self.errlabel = QLabel()
 
         # Hardware Parameters
         self.config = QLabel("Headset configuration:")
@@ -258,7 +262,7 @@ class InfoWindow(PageWindow):
         self.confirm_button = QPushButton("Confirm")
         self.confirm_button.clicked.connect(self.confirm_and_start)
 
-        self.dir = os.getcwd()
+        self.dir = self.curdir.text()
         self.colwin = collection_window
         self.init()
 
@@ -415,7 +419,7 @@ class InfoWindow(PageWindow):
             json.dump(info, f, ensure_ascii=False, indent=4)
 
     def get_directory(self):
-        dir = QFileDialog.getExistingDirectory(self, "Choose directory")
+        dir = QFileDialog.getExistingDirectory(self, "Choose a directory")
         self.curdir.setText(dir)
 
     def goto_collection(self):
@@ -428,13 +432,14 @@ class CollectionWindow(PageWindow, threading.Thread):
         self.setObjectName("CollectFrame")
 
     def activate(self, infopath, csession):
-        csession.start()
+        self.csession = csession
+        self.csession.start()
 
         self.infopath = infopath
         with open(infopath, 'r') as i:
             self.info = json.loads(i.read())
 
-        flags = csession.get_flags()
+        flags = self.csession.get_flags()
         # Only set by collection thread to indicate board status
         self.ready_flag, self.ongoing, self.error_flag = flags[0]
         # Set by GUI thread to start collection, but stop may be set by either collection or GUI thread
@@ -549,7 +554,7 @@ class CollectionWindow(PageWindow, threading.Thread):
             self.set_info()
             self.start_button.setDisabled(False)
         elif self.error_flag.is_set():
-            self.session_status = "Error: Failed to prepare session. Check logs."
+            self.session_status = self.csession.get_error()
             self.set_info()
 
     def show_ongoing(self):
@@ -613,7 +618,6 @@ class CollectionWindow(PageWindow, threading.Thread):
 
     def update_timer(self):
         if self.error_flag.is_set():
-            self.session_status = "Error"
             self.set_info()
             self.stop_session()
             return
@@ -657,7 +661,7 @@ class CollectionWindow(PageWindow, threading.Thread):
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
         if self.error_flag.is_set():
-            self.session_status = "Error"
+            self.session_status = self.csession.get_error()
         else:
             self.session_status = "Complete"
         self.set_info()
