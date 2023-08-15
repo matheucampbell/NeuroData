@@ -8,7 +8,9 @@ import threading
 import random
 
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout, QStackedWidget, QFrame, QFileDialog
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, 
+                             QGridLayout, QStackedWidget, QFrame, QFileDialog, QComboBox)
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
@@ -16,6 +18,33 @@ from DataSim import DataSim
 
 # Multi-page structure adapted from 
 # https://stackoverflow.com/questions/56867107/how-to-make-a-multi-page-application-in-pyqt5
+
+
+def create_empty_info():
+    return {
+        "SessionParams": {
+            "SubjectName": "",
+            "ResponseType": "",
+            "StimulusType": "",
+            "BlockLength": 0,
+            "BlockCount": 0,
+            "StimCycle": 0
+        },
+        "HardwareParams": {
+            "SampleRate": 0,
+            "HeadsetConfiguration": "",
+            "HeadsetModel": "",
+            "BufferSize": "100000"
+        },
+        "ProjectName": "",
+        "Description": "",
+        "Annotations": [],
+        "Date": datetime.now().strftime("%m-%d-%y"),
+        "Time": datetime.now().strftime("%H:%M"),
+        "S3Path": None,
+        "SessionID": None
+        }
+
 
 class CollectionSession(threading.Thread):
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
@@ -155,9 +184,23 @@ class DataCollectionGUI(QMainWindow):
 
 
 class InfoWindow(PageWindow):
+    boardmap = {'Cyton': (0, 125),
+                'CytonDaisy': (2, 250)}
+    buffsize_d = 100000
+    buffsize_max = 450000
+    buffsize_min = 500
+    blengthmax = 3600
+    bcountmax = 360
+
     def __init__(self, collection_window):
         super().__init__()
         self.setObjectName("InfoFrame")
+        self.date = datetime.now().strftime("%m-%d-%y")
+        self.time = datetime.now().strftime("%H:%M")
+        self.infodict = create_empty_info()
+        self.sespath = None
+        self.infodict['Date'] = self.date
+        self.infodict['Time'] = self.time
         
         # Directory Row
         self.dirlabel = QLabel("Session directory: ")
@@ -171,38 +214,49 @@ class InfoWindow(PageWindow):
         self.sname = QLabel("Subject name:")
         self.pname = QLabel("Project name:")
         self.rtype = QLabel("Response type:")
-        self.blength = QLabel("Block length:")
+        self.stype = QLabel("Stimulus type:")
+        self.blength = QLabel("Block length (s):")
         self.bcount = QLabel("Block count:")
         self.stimcycle = QLabel("Stimulus cycle:")
         self.description = QLabel("Description")
         self.fsname = QLineEdit()
         self.fpname = QLineEdit()
-        self.frtype = QLineEdit()
+        self.frtype = QComboBox()
+        self.init_combobox(self.frtype, "SSVEP", "SSVEP", "ERP", "other")
+        self.fstype = QComboBox()
+        self.init_combobox(self.fstype, "visual", "visual", "audio", "other")
         self.fblength = QLineEdit()
+        self.fblength.setValidator(QIntValidator(1, self.blengthmax))
         self.fbcount = QLineEdit()
+        self.fbcount.setValidator(QIntValidator(1, self.blengthmax))
         self.fstimcycle = QLineEdit()
         self.fdescription = QLineEdit()
         self.sesframe = QFrame()
         self.sesframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
+        self.errorframe = QFrame()
+        self.datelabel = QLabel(f"Date: {self.date}")
+        self.timelabel = QLabel(f"Time: {self.time}")
+        self.errlabel = QLabel("Error:")
 
         # Hardware Parameters
-        self.srate = QLabel("Sampling rate:")
         self.config = QLabel("Headset configuration:")
         self.model = QLabel("Headset model:")
-        self.buffsize = QLabel("Buffer size:")
+        self.buffsize = QLabel("Buffer size (samples):")
         self.serialport = QLabel("Serial port: ")
-        self.fsrate = QLineEdit()
-        self.fconfig = QLineEdit()
-        self.fmodel = QLineEdit()
+        self.fconfig = QComboBox()
+        self.init_combobox(self.fconfig, "standard", "Standard", "Occipital", "Other")
+        self.fmodel = QComboBox()
+        self.init_combobox(self.fmodel, "CytonDaisy", "CytonDaisy", "Cyton")
         self.fbuffsize = QLineEdit()
+        self.fbuffsize.setPlaceholderText(str(self.buffsize_d))
+        self.fbuffsize.setValidator(QIntValidator(10, 450000))
         self.fserialport = QLineEdit()
         self.hardframe = QFrame()
         self.hardframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
         # Confirmation
         self.confirm_button = QPushButton("Confirm")
-        self.confirm_button.clicked.connect(self.confirm_info)
-        self.confirm_button.clicked.connect(self.goto_collection)
+        self.confirm_button.clicked.connect(self.confirm_and_start)
 
         self.dir = os.getcwd()
         self.colwin = collection_window
@@ -222,7 +276,7 @@ class InfoWindow(PageWindow):
         # Parameter layout
         middlebar = QHBoxLayout()
 
-        # Session Parameters
+        # Session Parameters and Error Box
         seslayout = QGridLayout()
         seslayout.addWidget(self.sname, 0, 0)
         seslayout.addWidget(self.fsname, 0, 1)
@@ -230,21 +284,23 @@ class InfoWindow(PageWindow):
         seslayout.addWidget(self.fpname, 1, 1)
         seslayout.addWidget(self.rtype, 2, 0)
         seslayout.addWidget(self.frtype, 2, 1)
-        seslayout.addWidget(self.blength, 3, 0)
-        seslayout.addWidget(self.fblength, 3, 1)
-        seslayout.addWidget(self.bcount, 4, 0)
-        seslayout.addWidget(self.fbcount, 4, 1)
-        seslayout.addWidget(self.stimcycle, 5, 0)
-        seslayout.addWidget(self.fstimcycle, 5, 1)
-        seslayout.addWidget(self.description, 6, 0, 1, 2)
-        seslayout.addWidget(self.fdescription, 7, 0, 1, 2)
+        seslayout.addWidget(self.stype, 3, 0)
+        seslayout.addWidget(self.fstype, 3, 1)
+        seslayout.addWidget(self.blength, 4, 0)
+        seslayout.addWidget(self.fblength, 4, 1)
+        seslayout.addWidget(self.bcount, 5, 0)
+        seslayout.addWidget(self.fbcount, 5, 1)
+        seslayout.addWidget(self.stimcycle, 6, 0)
+        seslayout.addWidget(self.fstimcycle, 6, 1)
+        seslayout.addWidget(self.description, 7, 0, 1, 2)
+        seslayout.addWidget(self.fdescription, 8, 0, 1, 2)
         self.sesframe.setLayout(seslayout)
+
         middlebar.addWidget(self.sesframe)
 
         # Hardware Parameters
+        rightlayout = QVBoxLayout()
         hardlayout = QGridLayout()
-        hardlayout.addWidget(self.srate, 0, 0)
-        hardlayout.addWidget(self.fsrate, 0, 1)
         hardlayout.addWidget(self.config, 1, 0)
         hardlayout.addWidget(self.fconfig, 1, 1)
         hardlayout.addWidget(self.model, 2, 0)
@@ -254,19 +310,111 @@ class InfoWindow(PageWindow):
         hardlayout.addWidget(self.serialport, 4, 0)
         hardlayout.addWidget(self.fserialport, 4, 1)
         self.hardframe.setLayout(hardlayout)
-        middlebar.addWidget(self.hardframe)
+        rightlayout.addWidget(self.hardframe)
+
+        errlayout = QGridLayout()
+        errlayout.addWidget(self.datelabel, 0, 0)
+        errlayout.addWidget(self.timelabel, 0, 1)
+        errlayout.addWidget(self.errlabel, 1, 0, 1, 2)
+        self.errorframe.setLayout(errlayout)
+        rightlayout.addWidget(self.errorframe)
+
+        middlebar.addLayout(rightlayout)
 
         layout.addLayout(middlebar)
         layout.addWidget(self.confirm_button)
         self.setLayout(layout)
+
+    def init_combobox(self, cbox, default, *options):
+        cbox.setCurrentText(default)
+        cbox.addItems(options)
+
+    def confirm_and_start(self):
+        if not (res := self.check_info())[0]:
+            self.errlabel.setText(f"Error: {res[1]}")
+            return
+        else:
+            ipath = self.save_info()
+        
+        params = BrainFlowInputParams()
+        params.serial_port = self.fserialport.text()
+        bid = self.boardmap[self.fmodel.currentText()][0]
+        try:
+            board = BoardShim(bid, params)
+        except brainflow.BrainFlowError as E:
+            self.errlabel.setText(
+                "Error creating BoardShim object.\n{E}"
+            )
+
+        session = CollectionSession(board, self.sespath, int(self.fbuffsize.text()))
+        self.colwin.activate(os.path.join(self.sespath, "info.json"), session)
+        self.goto_collection()
     
-    def confirm_info(self):
-        session = CollectionSession(2,
-                                    os.path.join(os.getcwd(), "session_08-14-23_1241"),
-                                    10000)
-        ipath = os.path.join(os.getcwd(), "session_08-14-23_1241", "info.json")
-        self.colwin.activate(ipath, session)
-    
+    def check_info(self):
+        if not self.fsname.text():
+            return False, "No subject name supplied."
+        if not self.fpname.text():
+            return False, "No project name supplied."
+        bl = self.fblength.text()
+        if not bl:
+            return False, "No block length supplied."
+        bl = int(bl)
+        if bl < 1:
+            return False, "Block length must be positive."
+        if bl > self.blengthmax:
+            return False, f"Block length too high. (Max: {self.blengthmax})"
+        bc = self.fbcount.text()
+        if not bc:
+            return False, "No block count supplied."
+        bc = int(bc)
+        if bc < 1:
+            return False, "Block count must be positive."
+        elif bc > self.bcountmax:
+            return False, f"Block count too high. (Max: {self.bcountmax})"
+        
+        if not self.fstimcycle.text():
+            return False, "No stimulus cycle supplied."
+        if len(self.fstimcycle.text()) != bc:
+            return False, "Invalid stim cycle."
+        if self.fbuffsize.text() == "":
+            return False, "No buffer size supplied."
+        if int(self.fbuffsize.text()) > 450000:
+            return False, f"Buffer size too high. (Max: {self.buffsize_max})"
+        if int(self.fbuffsize.text()) < 500:
+            return (False, f"Buffer size too low. (Min: {self.buffsize_min})")
+        if not self.fserialport.text():
+            return False, "No serial port supplied."
+        
+        return True, ""
+
+    def save_info(self):
+        info = self.infodict
+        info['SessionParams']['SubjectName'] = self.fsname.text()
+        info['SessionParams']['ResponseType'] = self.frtype.currentText()
+        info['SessionParams']['StimulusType'] = self.fstype.currentText()
+        blength, bcount = self.fblength.text(), self.fbcount.text(),
+        info['SessionParams']['BlockLength'] = blength
+        info['SessionParams']['BlockCount'] = bcount
+        info['SessionParams']['StimCycle'] = self.fstimcycle.text()
+        info['SessionParams']['SubjectName'] = self.fstimcycle.text()
+        info['HardwareParams']['HeadsetConfiguration'] = self.fsname.text()
+        model = self.fmodel.currentText()
+        info['HardwareParams']['HeadsetModel'] = model
+        info['HardwareParams']['SampleRate'] = str(self.boardmap[model][1])
+        info['HardwareParams']['BufferSize'] = str(self.fbuffsize.text())
+        info['ProjectName'] = self.fpname.text()
+        info['Description'] = self.fdescription.text()
+
+        bcount = int(bcount)
+        blength = int(blength)
+        info['Annotations'] = [(float(blength*k), f"Block{k}") for k in range(1, bcount+1)]
+
+        suffix = self.date + "_" + self.time.replace(":", "")
+        self.sespath = os.path.join(self.curdir.text(), f"session_{suffix}")
+        os.makedirs(self.sespath, exist_ok=True, mode=0o777)
+        with open(os.path.join(self.sespath, "info.json"), 'w') as f:
+            json.dump(info, f, ensure_ascii=False, indent=4)
+
     def get_directory(self):
         dir = QFileDialog.getExistingDirectory(self, "Choose directory")
         self.curdir.setText(dir)

@@ -32,6 +32,10 @@ QLineEdit {
     border-radius: 5px;
     font-size: 14px;
 }
+QComboBox {
+    color: white;
+    background-color: #43484d;
+}
 QFrame {
     background-color: #1d2324;
     border-radius: 10px;
