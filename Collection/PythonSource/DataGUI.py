@@ -10,7 +10,7 @@ import threading
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
                              QLabel, QLineEdit, QTextEdit, QComboBox, QPushButton, QFileDialog,
-                             QVBoxLayout, QHBoxLayout, QGridLayout)
+                             QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy)
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
@@ -178,8 +178,8 @@ class DataCollectionGUI(QMainWindow):
         super().__init__()
         self.pages = {}
         self.setWindowTitle("Data Collection GUI")
-        # self.setFixedWidth(500)
         self.stack = QStackedWidget()
+        self.stack.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setCentralWidget(self.stack)
 
         cwindow = CollectionWindow()
@@ -219,7 +219,7 @@ class InfoWindow(PageWindow):
 
     def __init__(self, collection_window):
         super().__init__()
-        self.setObjectName("InfoFrame")
+        self.setObjectName("FullFrame")
         self.date = datetime.now().strftime("%m-%d-%y")
         self.time = datetime.now().strftime("%H:%M")
         self.infodict = create_empty_info()
@@ -296,7 +296,7 @@ class InfoWindow(PageWindow):
 
     def init(self):
         layout = QVBoxLayout()
-        
+
         # Directory Selector
         dirlayout = QGridLayout()
         dirlayout.addWidget(self.dirlabel, 0, 0, 1, 2)
@@ -461,7 +461,7 @@ class InfoWindow(PageWindow):
 class CollectionWindow(PageWindow):
     def __init__(self):
         super().__init__()
-        self.setObjectName("CollectFrame")
+        self.setObjectName("FullFrame")
 
     def activate(self, infopath, csession):
         self.csession = csession
@@ -492,8 +492,9 @@ class CollectionWindow(PageWindow):
         self.info_panel = QFrame(self)
         self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
-        self.info_labels = QLabel("Subject:\nProject:\nResponse type:\nStimulus type:\n\nSampling rate:\n" +
-                                  "Configuration:\nModel:\n")
+        self.info_labels = QLabel("Session Info\nSubject:\nProject:\nResponse type:\nStimulus type:\n\n" +
+                                  "Sampling rate:\nConfiguration:\nModel:\n\nCollection Details\nBlock Count:\n" +
+                                  "Block Length:\nCycle:")
         self.info_labels.setObjectName('FieldLabels')
         self.infslabel = QLabel("Session status:")
         self.infslabel.setStyleSheet("font-weight: bold")
@@ -508,12 +509,6 @@ class CollectionWindow(PageWindow):
         self.status_info = QLabel()
         self.timer_label = QLabel("00:00")
         self.stimer_label = QLabel("00:00")
-
-        # Bottom Right Panel
-        self.session_panel = QFrame(self)
-        self.session_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
-        self.session_label = QLabel(f"Block Count: {self.bcount}\nBlock Length: {self.blength}s\n" +
-                                    f"Cycle: {self.stimcycle}")
 
         # Buttons and top level widgets
         self.entry_button = QPushButton("Mark Event")
@@ -540,36 +535,31 @@ class CollectionWindow(PageWindow):
 
         infolayout = QHBoxLayout()
         leftlayout = QVBoxLayout()
-        leftlayout.addWidget(self.info_labels)
-        leftlayout.addWidget(self.infslabel)
+        leftlayout.addWidget(self.info_labels, alignment=Qt.AlignTop | Qt.AlignLeft)
         infolayout.addLayout(leftlayout)
         rightlayout = QVBoxLayout()
-        rightlayout.addWidget(self.info_text)
-        rightlayout.addWidget(self.info_status)
+        rightlayout.addWidget(self.info_text, alignment=Qt.AlignTop | Qt.AlignLeft)
         infolayout.addLayout(rightlayout)
         self.info_panel.setLayout(infolayout)
-        gridlayout.addWidget(self.info_panel, 0, 0, 3, 1)
+        gridlayout.addWidget(self.info_panel, 0, 0, 2, 1)
 
         statuslayout = QGridLayout()
         statuslayout.addWidget(self.state_indicator, 0, 0)
         statuslayout.addWidget(self.status_label, 0, 1)
         statuslayout.addWidget(self.status_info, 1, 0, 1, 2)
-        statuslayout.addWidget(self.timer_label, 1, 3, alignment=Qt.AlignRight)
-        statuslayout.addWidget(self.stimer_label, 0, 3, alignment=Qt.AlignTop | Qt.AlignRight)
+        statuslayout.addWidget(self.timer_label, 1, 2, alignment=Qt.AlignRight)
+        statuslayout.addWidget(self.stimer_label, 0, 2, alignment=Qt.AlignTop | Qt.AlignRight)
+        statuslayout.addWidget(self.infslabel, 2, 0, 1, 2)
+        statuslayout.addWidget(self.info_status, 2, 2)
         self.status_panel.setLayout(statuslayout)
         gridlayout.addWidget(self.status_panel, 0, 1)
 
-        sessionlayout = QVBoxLayout()
-        sessionlayout.addWidget(self.session_label)
-        self.session_panel.setLayout(sessionlayout)
-        gridlayout.addWidget(self.session_panel, 1, 1)
-
-        buttonlayout = QVBoxLayout()
-        buttonlayout.addWidget(self.entry_annotation)
-        buttonlayout.addWidget(self.entry_button)
-        buttonlayout.addWidget(self.start_button)
-        buttonlayout.addWidget(self.stop_button)
-        gridlayout.addLayout(buttonlayout, 2, 1)
+        buttonlayout = QGridLayout()
+        buttonlayout.addWidget(self.entry_annotation, 0, 0, 1, 3)
+        buttonlayout.addWidget(self.entry_button, 0, 3)
+        buttonlayout.addWidget(self.start_button, 1, 0, 1, 2)
+        buttonlayout.addWidget(self.stop_button, 1, 2, 1, 2)
+        gridlayout.addLayout(buttonlayout, 1, 1)
 
         layout.addLayout(gridlayout)
         self.setLayout(layout)
@@ -626,8 +616,11 @@ class CollectionWindow(PageWindow):
         stype = self.info['SessionParams'].get('StimulusType', '--') + '\n\n'
         srate = self.info['HardwareParams'].get('SampleRate', '--') + '\n'
         config = self.info['HardwareParams'].get('HeadsetConfiguration', '--') + '\n'
-        model = self.info['HardwareParams'].get('HeadsetModel', '--')
-        itext = sub + proj + resp + stype + srate + config + model + '\n'
+        model = self.info['HardwareParams'].get('HeadsetModel', '--') + '\n'
+
+        cdetails = '\n'.join(['\n'+str(self.bcount), str(self.blength)+'s', self.stimcycle])
+        itext = '\n' + sub + proj + resp + stype + srate + config + model + '\n' + cdetails
+
         self.info_text.setText(itext)
 
     def set_info_status(self, status, error=False):

@@ -1,13 +1,11 @@
-QMainWindow {
-    color: white;
-    background-color: #43484d;
-}
 QFrame {
+    color: white;
     background-color: #1d2324;
     border-radius: 10px;
 }
-#CollectFrame { background-color: #43484d }
-#InfoFrame { background-color: #43484d }
+#FullFrame { background-color: #43484d;
+             border-radius: 0px;
+}
 QLabel {
     color: #c5cfde;
     font-size: 15px;
