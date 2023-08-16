@@ -13,7 +13,7 @@ QLabel {
     font-size: 15px;
 }
 #FieldLabels { font-weight: bold }
-#ErrorLabel { color: #fc0303 }
+#ErrorLabel { color: #c20808 }
 #Divider { background-color: #6c6f70; }
 QPushButton {
     background-color: #007bff;
@@ -52,4 +52,9 @@ QComboBox {
     padding: 2px;
     color: white;
     background-color: #43484d;
+}
+QComboBox QAbstractItemView{
+    color: white;
+    background-color: #1d2324;
+    border-radius: 0px;
 }

@@ -8,8 +8,9 @@ import random
 import threading
 
 from datetime import datetime
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, QTextEdit, QPushButton, QVBoxLayout, QHBoxLayout, 
-                             QGridLayout, QStackedWidget, QFrame, QFileDialog, QComboBox)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
+                             QLabel, QLineEdit, QTextEdit, QComboBox, QPushButton, QFileDialog,
+                             QVBoxLayout, QHBoxLayout, QGridLayout)
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
@@ -88,7 +89,7 @@ class CollectionSession(Thread):
     def update_data(self):
         print("Updating data...")
         try:
-            if random.randint(1, 5) == 10:
+            if random.randint(1, 2) == 3:
                 self.error_message = "RandomError: Encountered random error."
                 self.error_flag.set()
             if not self.data.any():
@@ -153,7 +154,6 @@ class StateIndicator(QFrame):
         self.setFixedSize(dia, dia)
         self.dia = dia
         self.setFrameShape(QFrame.StyledPanel)
-        self.setObjectName("StateIndicator")
 
         self.active = active_color
         self.inactive = inactive_color
@@ -161,9 +161,9 @@ class StateIndicator(QFrame):
 
     def set_active(self, active=True):
         if active:
-            self.setStyleSheet(f"#StateIndicator {{ background-color: {self.active}; border-radius: {self.dia//2}px; }}")
+            self.setStyleSheet(f"background-color: {self.active}; border-radius: {self.dia//2}px;")
         else:
-            self.setStyleSheet(f"#StateIndicator {{ background-color: {self.inactive}; border-radius: {self.dia//2}px; }}")
+            self.setStyleSheet(f"background-color: {self.inactive}; border-radius: {self.dia//2}px;")
 
 
 class PageWindow(QFrame):
@@ -209,8 +209,8 @@ class DataCollectionGUI(QMainWindow):
 
 
 class InfoWindow(PageWindow):
-    boardmap = {'Cyton': (0, 125),
-                'CytonDaisy': (2, 250)}
+    boardmap = {'Cyton': (0, 250),
+                'CytonDaisy': (2, 125)}
     buffsize_d = 100000
     buffsize_max = 450000
     buffsize_min = 800
@@ -273,7 +273,7 @@ class InfoWindow(PageWindow):
         self.config = QLabel("Headset configuration:")
         self.model = QLabel("Headset model:")
         self.buffsize = QLabel("Buffer size (samples):")
-        self.serialport = QLabel("Serial port: ")
+        self.serialport = QLabel("Board serial port: ")
         self.fconfig = QComboBox()
         self.init_combobox(self.fconfig, "standard", "Standard", "Occipital", "Other")
         self.fmodel = QComboBox()
@@ -282,6 +282,7 @@ class InfoWindow(PageWindow):
         self.fbuffsize.setPlaceholderText(str(self.buffsize_d))
         self.fbuffsize.setValidator(QIntValidator(self.buffsize_min, self.buffsize_max))
         self.fserialport = QLineEdit()
+        self.fserialport.setPlaceholderText("Ex: COM4")
         self.hardframe = QFrame()
         self.hardframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
@@ -344,7 +345,7 @@ class InfoWindow(PageWindow):
         hardlayout.addWidget(self.fserialport, 4, 1)
         hardlayout.addWidget(self.errdiv, 5, 0, 1, 2, Qt.AlignBottom)
         hardlayout.addWidget(self.datelabel, 6, 0, Qt.AlignBottom)
-        hardlayout.addWidget(self.timelabel, 6, 1, Qt.AlignBottom)
+        hardlayout.addWidget(self.timelabel, 6, 1, Qt.AlignBottom | Qt.AlignRight)
         hardlayout.addWidget(self.errlabel, 7, 0, 1, 2, Qt.AlignBottom)
         self.hardframe.setLayout(hardlayout)
         rightlayout.addWidget(self.hardframe)
@@ -382,13 +383,13 @@ class InfoWindow(PageWindow):
         self.goto_collection()
     
     def check_info(self):
-        if not self.curdir.text():
+        if not self.curdir.text().strip():
             return False, "No session directory supplied."
-        if not self.fsname.text():
+        if not self.fsname.text().strip():
             return False, "No subject name supplied."
-        if not self.fpname.text():
+        if not self.fpname.text().strip():
             return False, "No project name supplied."
-        bl = self.fblength.text()
+        bl = self.fblength.text().strip()
         if not bl:
             return False, "No block length supplied."
         bl = int(bl)
@@ -396,7 +397,7 @@ class InfoWindow(PageWindow):
             return False, "Block length must be positive."
         if bl > self.blengthmax:
             return False, f"Block length too high. (Max: {self.blengthmax})"
-        bc = self.fbcount.text()
+        bc = self.fbcount.text().strip()
         if not bc:
             return False, "No block count supplied."
         bc = int(bc)
@@ -405,19 +406,19 @@ class InfoWindow(PageWindow):
         elif bc > self.bcountmax:
             return False, f"Block count too high. (Max: {self.bcountmax})"
         
-        if not self.fstimcycle.text():
+        if not self.fstimcycle.text().strip():
             return False, "No stimulus cycle supplied."
-        stimcycle = self.fstimcycle.text()
-        test = stimcycle.strip().replace("1", "").replace("0", "")
+        stimcycle = self.fstimcycle.text().strip()
+        test = stimcycle.replace("1", "").replace("0", "")
         if len(test) or len(stimcycle) != bc:
             return False, "Invalid stim cycle."
-        if self.fbuffsize.text() == "":
+        if not self.fbuffsize.text().strip():
             return False, "No buffer size supplied."
         if int(self.fbuffsize.text()) > 450000:
             return False, f"Buffer size too high. (Max: {self.buffsize_max})"
         if int(self.fbuffsize.text()) < 500:
-            return (False, f"Buffer size too low. (Min: {self.buffsize_min})")
-        if not self.fserialport.text():
+            return False, f"Buffer size too low. (Min: {self.buffsize_min})"
+        if not self.fserialport.text().strip():
             return False, "No serial port supplied."
         
         return True, ""
@@ -473,14 +474,13 @@ class CollectionWindow(PageWindow):
         flags = self.csession.get_flags()
         # Only set by collection thread to indicate board status
         self.ready_flag, self.ongoing, self.error_flag = flags[0]
-        # Set by GUI thread to start collection, but stop may be set by either collection or GUI thread
+        # Start set by GUI thread to start collection, but stop may be set by either collection or GUI thread
         self.start_event, self.stop_event = flags[1]
 
         self.session_status = "Preparing"
         self.bcount = int(self.info['SessionParams']['BlockCount'])
         self.blength = int(self.info['SessionParams']['BlockLength'])
         self.stimcycle = self.info['SessionParams']['StimCycle']
-        self.itext = None
 
         self.current_block = 0
         self.start_time = None
@@ -492,16 +492,18 @@ class CollectionWindow(PageWindow):
         self.info_panel = QFrame(self)
         self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
-        self.info_labels = QLabel(parent=self.info_panel)
-        self.info_labels.setText("Subject:\nProject:\nResponse type:\nStimulus type:\n\nSampling rate:\n" + 
-                                 "Configuration:\nModel:\n\nSession status:")
+        self.info_labels = QLabel("Subject:\nProject:\nResponse type:\nStimulus type:\n\nSampling rate:\n" +
+                                  "Configuration:\nModel:\n")
         self.info_labels.setObjectName('FieldLabels')
-        self.info_text = QLabel(parent=self.info_panel)
+        self.infslabel = QLabel("Session status:")
+        self.infslabel.setStyleSheet("font-weight: bold")
+        self.info_text = QLabel()
+        self.info_status = QLabel()
 
         # Bottom Left Panel
         self.status_panel = QFrame(self)
         self.status_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
-        self.status_panel.setFixedWidth(235)
+        # self.status_panel.setFixedWidth(235)
         self.status_label = QLabel("Active")
         self.status_info = QLabel()
         self.timer_label = QLabel("00:00")
@@ -512,55 +514,66 @@ class CollectionWindow(PageWindow):
         self.session_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.session_label = QLabel(f"Block Count: {self.bcount}\nBlock Length: {self.blength}s\n" +
                                     f"Cycle: {self.stimcycle}")
-        
+
         # Buttons and top level widgets
         self.entry_button = QPushButton("Mark Event")
+        self.entry_button.clicked.connect(self.on_enter_annotation)
+        self.entry_button.setDisabled(True)
         self.entry_annotation = QLineEdit(self)
+        self.entry_annotation.setPlaceholderText("t0")
         self.entry_annotation.returnPressed.connect(self.on_enter_annotation)
         self.state_indicator = StateIndicator("#04d481", "black")
         self.start_button = QPushButton("Start")
+        self.start_button.clicked.connect(self.start_session)
+        self.start_button.setDisabled(True)
         self.stop_button = QPushButton("Stop")
+        self.stop_button.clicked.connect(self.stop_session)
+        self.stop_button.setDisabled(True)
 
         self.init()
 
     def init(self):
         layout = QVBoxLayout()
         gridlayout = QGridLayout()
+        gridlayout.setColumnStretch(0, 1)
+        gridlayout.setColumnStretch(1, 2)
 
         infolayout = QHBoxLayout()
-        infolayout.addWidget(self.info_labels)
-        infolayout.addWidget(self.info_text)
+        leftlayout = QVBoxLayout()
+        leftlayout.addWidget(self.info_labels)
+        leftlayout.addWidget(self.infslabel)
+        infolayout.addLayout(leftlayout)
+        rightlayout = QVBoxLayout()
+        rightlayout.addWidget(self.info_text)
+        rightlayout.addWidget(self.info_status)
+        infolayout.addLayout(rightlayout)
         self.info_panel.setLayout(infolayout)
-        gridlayout.addWidget(self.info_panel, 0, 0, 1, 2)
+        gridlayout.addWidget(self.info_panel, 0, 0, 3, 1)
 
         statuslayout = QGridLayout()
         statuslayout.addWidget(self.state_indicator, 0, 0)
         statuslayout.addWidget(self.status_label, 0, 1)
         statuslayout.addWidget(self.status_info, 1, 0, 1, 2)
-        statuslayout.addWidget(self.timer_label, 1, 3)
-        statuslayout.addWidget(self.stimer_label, 0, 3)
+        statuslayout.addWidget(self.timer_label, 1, 3, alignment=Qt.AlignRight)
+        statuslayout.addWidget(self.stimer_label, 0, 3, alignment=Qt.AlignTop | Qt.AlignRight)
         self.status_panel.setLayout(statuslayout)
-        gridlayout.addWidget(self.status_panel, 1, 0)
+        gridlayout.addWidget(self.status_panel, 0, 1)
 
         sessionlayout = QVBoxLayout()
         sessionlayout.addWidget(self.session_label)
         self.session_panel.setLayout(sessionlayout)
         gridlayout.addWidget(self.session_panel, 1, 1)
 
-        layout.addLayout(gridlayout)
-        layout.addWidget(self.entry_annotation)
-        layout.addWidget(self.entry_button)
-        self.entry_button.clicked.connect(self.on_enter_annotation)
-        self.entry_button.setDisabled(True)
-        layout.addWidget(self.start_button)
-        self.start_button.clicked.connect(self.start_session)
-        self.start_button.setDisabled(True)
-        layout.addWidget(self.stop_button)
-        self.stop_button.clicked.connect(self.stop_session)
-        self.stop_button.setDisabled(True)
+        buttonlayout = QVBoxLayout()
+        buttonlayout.addWidget(self.entry_annotation)
+        buttonlayout.addWidget(self.entry_button)
+        buttonlayout.addWidget(self.start_button)
+        buttonlayout.addWidget(self.stop_button)
+        gridlayout.addLayout(buttonlayout, 2, 1)
 
+        layout.addLayout(gridlayout)
         self.setLayout(layout)
-        self.entry_annotation.setPlaceholderText("t0")
+
         self.set_info()
         self.update_status()
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
@@ -569,23 +582,22 @@ class CollectionWindow(PageWindow):
     def wait_for_ready(self):
         i = 0
         while not (ready := self.ready_flag.is_set()) and not self.error_flag.is_set() and not self.stop_event.is_set():
-            self.session_status = "Preparing" + "." * i
-            self.set_info()
+            infostat = "Preparing" + "." * i
+            self.set_info_status(infostat)
             i = (i+1) % 4
             sleep(0.5)
         if ready:
-            self.session_status = "Ready"
-            self.set_info()
+            self.set_info_status("Ready")
             self.start_button.setDisabled(False)
         elif self.error_flag.is_set():
-            self.session_status = self.csession.get_error()
-            self.set_info()
+            infostat = self.csession.get_error()
+            self.set_info_status(infostat, error=True)
 
     def show_ongoing(self):
         i = 0
         while not self.stop_event.is_set() and not self.error_flag.is_set():
-            self.session_status = "Collecting" + "." * i
-            self.set_info()
+            infostat = "Collecting" + "." * i
+            self.set_info_status(infostat)
             i = (i+1) % 4
             sleep(0.5)
 
@@ -608,18 +620,23 @@ class CollectionWindow(PageWindow):
         self.entry_annotation.setPlaceholderText(self.tlabel())
 
     def set_info(self):
-        if not self.itext:
-            sub = self.info['SessionParams'].get('SubjectName', '--') + '\n'
-            proj = self.info.get('ProjectName', '--') + '\n'
-            resp = self.info['SessionParams'].get('ResponseType', '--') + '\n'
-            stype = self.info['SessionParams'].get('StimulusType', '--') + '\n\n'
-            srate = self.info['HardwareParams'].get('SampleRate', '--') + '\n'
-            config = self.info['HardwareParams'].get('HeadsetConfiguration', '--') + '\n'
-            model = self.info['HardwareParams'].get('HeadsetModel', '--')
-            self.itext = sub + proj + resp + stype + srate + config + model
-        
-        self.info_text.setText(self.itext + f"\n\n{self.session_status}")
-    
+        sub = self.info['SessionParams'].get('SubjectName', '--') + '\n'
+        proj = self.info.get('ProjectName', '--') + '\n'
+        resp = self.info['SessionParams'].get('ResponseType', '--') + '\n'
+        stype = self.info['SessionParams'].get('StimulusType', '--') + '\n\n'
+        srate = self.info['HardwareParams'].get('SampleRate', '--') + '\n'
+        config = self.info['HardwareParams'].get('HeadsetConfiguration', '--') + '\n'
+        model = self.info['HardwareParams'].get('HeadsetModel', '--')
+        itext = sub + proj + resp + stype + srate + config + model + '\n'
+        self.info_text.setText(itext)
+
+    def set_info_status(self, status, error=False):
+        if error:
+            self.info_status.setStyleSheet("color: #c20808")
+        else:
+            self.info_status.setStyleSheet("color: #c5cfde")
+        self.info_status.setText(status)
+
     def update_status(self):
         if 1 <= self.current_block < len(self.stimcycle):  # Session in progress and not last block
             next_active = self.stimcycle[self.current_block] == '1'
@@ -642,7 +659,7 @@ class CollectionWindow(PageWindow):
 
     def update_timer(self):
         if self.error_flag.is_set():
-            self.set_info()
+            self.set_info_status(self.csession.get_error(), error=True)
             self.stop_session()
             return
 
@@ -685,10 +702,10 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
         if self.error_flag.is_set():
-            self.session_status = self.csession.get_error()
+            infostat = self.csession.get_error()
+            self.set_info_status(infostat, error=True)
         else:
-            self.session_status = "Complete"
-        self.set_info()
+            self.set_info_status("Complete", error=False)
 
     def tlabel(self):
         self.t += 1
