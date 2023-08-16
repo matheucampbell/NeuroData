@@ -1,0 +1,7 @@
+name: collection-env
+
+dependencies:
+  - brainflow=5.9.0
+  - numpy=1.23.4
+  - pandas=1.5.1
+  - PyQt5=5.15.9

@@ -8,10 +8,10 @@ import random
 import threading
 
 from datetime import datetime
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, 
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QLineEdit, QTextEdit, QPushButton, QVBoxLayout, QHBoxLayout, 
                              QGridLayout, QStackedWidget, QFrame, QFileDialog, QComboBox)
 from PyQt5.QtGui import QIntValidator
-from PyQt5.QtCore import QTimer, QTime, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
@@ -213,7 +213,7 @@ class InfoWindow(PageWindow):
                 'CytonDaisy': (2, 250)}
     buffsize_d = 100000
     buffsize_max = 450000
-    buffsize_min = 500
+    buffsize_min = 800
     blengthmax = 3600
     bcountmax = 360
 
@@ -255,13 +255,19 @@ class InfoWindow(PageWindow):
         self.fbcount = QLineEdit()
         self.fbcount.setValidator(QIntValidator(1, self.blengthmax))
         self.fstimcycle = QLineEdit()
-        self.fdescription = QLineEdit()
+        self.fstimcycle.setPlaceholderText("Ex: 10101")
+        self.fdescription = QTextEdit()
+        self.fdescription.setPlaceholderText("Ex: SSVEP freq. 7/9/13 Hz GUI v1.2")
+        self.fdescription.setMaximumHeight(80)
         self.sesframe = QFrame()
         self.sesframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
-        self.errorframe = QFrame()
-        self.datelabel = QLabel(f"Date: {self.date}")
-        self.timelabel = QLabel(f"Time: {self.time}")
+        self.errdiv = QFrame()
+        self.errdiv.setFrameStyle(QFrame.HLine | QFrame.Plain)
+        self.errdiv.setObjectName("Divider")
+        self.datelabel = QLabel(self.date)
+        self.timelabel = QLabel(self.time)
         self.errlabel = QLabel()
+        self.errlabel.setObjectName("ErrorLabel")
 
         # Hardware Parameters
         self.config = QLabel("Headset configuration:")
@@ -274,7 +280,7 @@ class InfoWindow(PageWindow):
         self.init_combobox(self.fmodel, "CytonDaisy", "CytonDaisy", "Cyton")
         self.fbuffsize = QLineEdit()
         self.fbuffsize.setPlaceholderText(str(self.buffsize_d))
-        self.fbuffsize.setValidator(QIntValidator(10, 450000))
+        self.fbuffsize.setValidator(QIntValidator(self.buffsize_min, self.buffsize_max))
         self.fserialport = QLineEdit()
         self.hardframe = QFrame()
         self.hardframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
@@ -326,6 +332,8 @@ class InfoWindow(PageWindow):
         # Hardware Parameters
         rightlayout = QVBoxLayout()
         hardlayout = QGridLayout()
+        hardlayout.setRowStretch(5, 2)
+        hardlayout.setRowMinimumHeight(6, 2)
         hardlayout.addWidget(self.config, 1, 0)
         hardlayout.addWidget(self.fconfig, 1, 1)
         hardlayout.addWidget(self.model, 2, 0)
@@ -334,15 +342,12 @@ class InfoWindow(PageWindow):
         hardlayout.addWidget(self.fbuffsize, 3, 1)
         hardlayout.addWidget(self.serialport, 4, 0)
         hardlayout.addWidget(self.fserialport, 4, 1)
+        hardlayout.addWidget(self.errdiv, 5, 0, 1, 2, Qt.AlignBottom)
+        hardlayout.addWidget(self.datelabel, 6, 0, Qt.AlignBottom)
+        hardlayout.addWidget(self.timelabel, 6, 1, Qt.AlignBottom)
+        hardlayout.addWidget(self.errlabel, 7, 0, 1, 2, Qt.AlignBottom)
         self.hardframe.setLayout(hardlayout)
         rightlayout.addWidget(self.hardframe)
-
-        errlayout = QGridLayout()
-        errlayout.addWidget(self.datelabel, 0, 0)
-        errlayout.addWidget(self.timelabel, 0, 1)
-        errlayout.addWidget(self.errlabel, 1, 0, 1, 2)
-        self.errorframe.setLayout(errlayout)
-        rightlayout.addWidget(self.errorframe)
 
         middlebar.addLayout(rightlayout)
 
@@ -377,6 +382,8 @@ class InfoWindow(PageWindow):
         self.goto_collection()
     
     def check_info(self):
+        if not self.curdir.text():
+            return False, "No session directory supplied."
         if not self.fsname.text():
             return False, "No subject name supplied."
         if not self.fpname.text():
@@ -400,7 +407,9 @@ class InfoWindow(PageWindow):
         
         if not self.fstimcycle.text():
             return False, "No stimulus cycle supplied."
-        if len(self.fstimcycle.text()) != bc:
+        stimcycle = self.fstimcycle.text()
+        test = stimcycle.strip().replace("1", "").replace("0", "")
+        if len(test) or len(stimcycle) != bc:
             return False, "Invalid stim cycle."
         if self.fbuffsize.text() == "":
             return False, "No buffer size supplied."
@@ -415,20 +424,20 @@ class InfoWindow(PageWindow):
 
     def save_info(self):
         info = self.infodict
-        info['SessionParams']['SubjectName'] = self.fsname.text()
+        info['SessionParams']['SubjectName'] = self.fsname.text().strip()
         info['SessionParams']['ResponseType'] = self.frtype.currentText()
         info['SessionParams']['StimulusType'] = self.fstype.currentText()
-        blength, bcount = self.fblength.text(), self.fbcount.text(),
+        blength, bcount = self.fblength.text(), self.fbcount.text()
         info['SessionParams']['BlockLength'] = blength
         info['SessionParams']['BlockCount'] = bcount
-        info['SessionParams']['StimCycle'] = self.fstimcycle.text()
+        info['SessionParams']['StimCycle'] = self.fstimcycle.text().strip()
         info['HardwareParams']['HeadsetConfiguration'] = self.fconfig.currentText()
         model = self.fmodel.currentText()
         info['HardwareParams']['HeadsetModel'] = model
         info['HardwareParams']['SampleRate'] = str(self.boardmap[model][1])
         info['HardwareParams']['BufferSize'] = str(self.fbuffsize.text())
-        info['ProjectName'] = self.fpname.text()
-        info['Description'] = self.fdescription.text()
+        info['ProjectName'] = self.fpname.text().strip()
+        info['Description'] = self.fdescription.toPlainText().strip()
 
         bcount = int(bcount)
         blength = int(blength)
