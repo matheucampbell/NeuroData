@@ -5,7 +5,6 @@ import numpy as np
 import os
 import pandas as pd
 import random
-import sys
 
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
@@ -28,12 +27,12 @@ def create_empty_info():
             "SubjectName": "",
             "ResponseType": "",
             "StimulusType": "",
-            "BlockLength": 0,
-            "BlockCount": 0,
-            "StimCycle": 0
+            "BlockLength": "",
+            "BlockCount": "",
+            "StimCycle": ""
         },
         "HardwareParams": {
-            "SampleRate": 0,
+            "SampleRate": "",
             "HeadsetConfiguration": "",
             "HeadsetModel": "",
             "BufferSize": "100000"
@@ -110,7 +109,6 @@ class CollectionSession(Thread):
             self.error_message = "Error: Check logs."
             self.error_flag.set()
 
-
     def start_stream(self):
         if not self.ready_flag.is_set():
             return
@@ -118,7 +116,6 @@ class CollectionSession(Thread):
         self.sim.start_stream()
 
     def update_data(self):
-        self.log_message(self.infolevel, "[GUI]: Updating data...")
         try:
             if random.randint(1, 2) == 3:
                 self.error_message = "RandomError: Encountered random error."
@@ -490,7 +487,7 @@ class InfoWindow(PageWindow):
 class QTextEditLogger(QPlainTextEdit):
     def __init__(self, filepath, parent_layout):
         super().__init__()
-        self.logfile = open(filepath, mode='a+', buffering=1)
+        self.logfile = open(filepath, buffering=1)
         self.readpos = 0
 
         self.watcher = QFileSystemWatcher()
@@ -625,7 +622,6 @@ class CollectionWindow(PageWindow):
         loglayout.addWidget(self.log_label)
         self.logbox = self.init_logger(loglayout)
         gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
-
         layout.addLayout(gridlayout)
         self.setLayout(layout)
 
