@@ -46,6 +46,10 @@ QTextEdit {
     color: black;
     margin: 2px;
 }
+QPlainTextEdit{
+    font-family: MonoSpace;
+    font-size: 11px;
+}
 QComboBox {
     padding: 2px;
     color: white;

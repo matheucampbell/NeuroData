@@ -1,6 +1,5 @@
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
-import io
 import json
 import numpy as np
 import os
@@ -13,7 +12,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
                              QLabel, QLineEdit, QTextEdit, QPlainTextEdit, 
                              QComboBox, QPushButton, QFileDialog,
                              QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy)
-from PyQt5.QtGui import QIntValidator, QColor
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
@@ -49,7 +48,18 @@ def create_empty_info():
         }
 
 
+class ExceptableThread(Thread):
+    def run(self):
+        self.exc = None
+        try:
+            self.ret = self._target(*self._args, **self._kwargs)
+        except BaseException as e:
+            self.exc = e
+
+
 class CollectionSession(Thread):
+    infolevel = brainflow.LogLevels.LEVEL_INFO
+
     class PrepInterruptedException(Exception):
         """Raised by user closing the window during board preparation."""
 
@@ -64,35 +74,55 @@ class CollectionSession(Thread):
         self.start_event, self.stop_event = Event(), Event()
         self.data = np.zeros((5, 1))
         self.error_message = ""
+        self.lfpath = None
+
+    def activate_logger(self, fpath):
+        self.board.set_log_level(self.infolevel)
+        self.board.set_log_file(fpath)
+        self.lfpath = fpath
+    
+    def log_message(self, level, message):
+        self.board.log_message(level, message)
 
     def prepare(self):
+        self.log_message(self.infolevel, "[GUI]: Preparing board...")
         try:
-            # self.board.prepare_session()
-            # proc = threading.Thread(target=self.board.prepare_session, daemon=True, name="PrepThread")
-            proc = Thread(target=sleep, args=(5,), daemon=True, name="PrepThread")
+            # proc = ExceptableThread(target=self.board.prepare_session, daemon=True, name="PrepThread")
+            proc = ExceptableThread(target=sleep, args=(5,), daemon=True, name="PrepThread")
             proc.start()
             while proc.is_alive():
-                if self.stop_event.is_set():
-                    raise CollectionSession.PrepInterruptedException("Window closed during board preparation.")
-            self.ready_flag.set()
+                if self.stop_event.is_set() or self.error_flag.is_set():
+                    raise CollectionSession.PrepInterruptedException("Board preparation interrupted.")
+            if self.board.is_prepared() or True:  # Remove second part for real operation
+                self.ready_flag.set()
+                self.log_message(self.infolevel, "[GUI]: Board preparation successful.")
+            else:
+                raise Exception("Failed to prepare board.")
         except brainflow.BrainFlowError as E:
             self.error_message = str(E)
+            self.log_message(self.infolevel, f"{str(E)}")
             self.error_flag.set()
-        except CollectionSession.PrepInterruptedException:
-            return
+        except CollectionSession.PrepInterruptedException as E:
+            self.error_message = "Error: " + str(E)
+            self.log_message(self.infolevel, f"[GUI]: {str(E)}")
+            self.error_flag.set()
+        except Exception:
+            self.error_message = "Error: Check logs."
+            self.error_flag.set()
+
 
     def start_stream(self):
-        print("Stream started...")
         if not self.ready_flag.is_set():
             return
         # self.board.start_stream()
         self.sim.start_stream()
 
     def update_data(self):
-        print("Updating data...", file=sys.stderr)
+        self.log_message(self.infolevel, "[GUI]: Updating data...")
         try:
             if random.randint(1, 2) == 3:
                 self.error_message = "RandomError: Encountered random error."
+                self.log_message(self.infolevel, self.error_message)
                 self.error_flag.set()
             if not self.data.any():
                 # self.data = self.board.get_board_data()
@@ -108,8 +138,8 @@ class CollectionSession(Thread):
             return
 
     def save_data(self):
-        print("Update saved.")
         pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
+        self.log_message(self.infolevel, "[GUI]: Update saved.")
 
     def run(self):
         self.prepare()
@@ -128,11 +158,9 @@ class CollectionSession(Thread):
             self.update_data()
 
         if error:
-            print(self.error_message)
             self.end_session()
             return
         if stopped:
-            print("Stopped.")
             self.end_session()
 
     def end_session(self):
@@ -142,6 +170,7 @@ class CollectionSession(Thread):
         self.sim.stop_stream()
         self.ready_flag.clear()
         self.ongoing.clear()
+        self.log_message(self.infolevel, "[GUI]: Session ended.")
 
     def get_error(self):
         return self.error_message
@@ -409,8 +438,10 @@ class InfoWindow(PageWindow):
             return False, "No stimulus cycle supplied."
         stimcycle = self.fstimcycle.text().strip()
         test = stimcycle.replace("1", "").replace("0", "")
-        if len(test) or len(stimcycle) != bc:
-            return False, "Invalid stim cycle."
+        if len(test):
+            return False, "Invalid characters in stim cycle."
+        if len(stimcycle) != bc:
+            return False, "Stim cycle does not match block count."
         if not self.fbuffsize.text().strip():
             return False, "No buffer size supplied."
         if int(self.fbuffsize.text()) > 450000:
@@ -460,7 +491,6 @@ class QTextEditLogger(QPlainTextEdit):
     def __init__(self, filepath, parent_layout):
         super().__init__()
         self.logfile = open(filepath, mode='a+', buffering=1)
-        sys.stderr = self.logfile
         self.readpos = 0
 
         self.watcher = QFileSystemWatcher()
@@ -468,12 +498,12 @@ class QTextEditLogger(QPlainTextEdit):
         self.watcher.fileChanged.connect(self.update_log_window)
 
         self.setReadOnly(True)
+        self.setBackgroundVisible(True)
         parent_layout.addWidget(self)
 
     def update_log_window(self):
-        print("Update detected.")
         self.logfile.seek(self.readpos)
-        line = self.logfile.readline()
+        line = self.logfile.read()
         self.appendPlainText(line)
         self.readpos = self.logfile.tell()
     
@@ -489,7 +519,6 @@ class CollectionWindow(PageWindow):
 
     def activate(self, infopath, csession):
         self.csession = csession
-        self.csession.start()
 
         self.infopath = infopath
         with open(infopath, 'r') as i:
@@ -517,7 +546,7 @@ class CollectionWindow(PageWindow):
         self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
         self.info_labels = QLabel("Session Info\nSubject:\nProject:\nResponse type:\nStimulus type:\n\n" +
-                                  "Sampling rate:\nConfiguration:\nModel:\n\nCollection Details\nBlock Count:\n" +
+                                  "Sampling rate:\nConfiguration:\nModel:\n\nSession Structure\nBlock Count:\n" +
                                   "Block Length:\nCycle:")
         self.info_labels.setObjectName('FieldLabels')
         self.infslabel = QLabel("Session status:")
@@ -574,9 +603,11 @@ class CollectionWindow(PageWindow):
         gridlayout.addWidget(self.info_panel, 0, 0, 2, 1)
 
         statuslayout = QGridLayout(self.status_panel)
+        statuslayout.setRowStretch(2, 1)
+        statuslayout.setColumnStretch(2, 1)
         statuslayout.addWidget(self.state_indicator, 0, 0)
         statuslayout.addWidget(self.status_label, 0, 1)
-        statuslayout.addWidget(self.status_info, 1, 0, 2, 2, alignment=Qt.AlignVCenter | Qt.AlignLeft)
+        statuslayout.addWidget(self.status_info, 1, 0, 2, 2, alignment=Qt.AlignTop | Qt.AlignLeft)
         statuslayout.addWidget(self.timer_label, 1, 2, alignment=Qt.AlignTop | Qt.AlignRight)
         statuslayout.addWidget(self.stimer_label, 0, 2, alignment=Qt.AlignTop | Qt.AlignRight)
         statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, alignment=Qt.AlignBottom | Qt.AlignLeft)
@@ -603,8 +634,11 @@ class CollectionWindow(PageWindow):
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
 
+        self.csession.start()
+
     def init_logger(self, layout):
         lfile = os.path.join(os.path.normpath(self.infopath + os.sep + os.pardir), "sessionlog.log")
+        self.csession.activate_logger(lfile)
         return QTextEditLogger(lfile, layout)
 
     def wait_for_ready(self):
@@ -633,6 +667,7 @@ class CollectionWindow(PageWindow):
         self.info['Annotations'].append([time, note])
         with open(self.infopath, 'w') as file:
             json.dump(self.info, file, ensure_ascii=False, indent=4)
+        self.csession.log_message(brainflow.LogLevels.LEVEL_INFO, f"[GUI]: Annotation saved - '{note}'")
 
     def on_enter_annotation(self):
         if not self.start_time:
@@ -666,7 +701,7 @@ class CollectionWindow(PageWindow):
             self.info_status.setStyleSheet("color: #c20808")
         else:
             self.info_status.setStyleSheet("color: #c5cfde")
-        self.info_status.setText(status)
+        self.info_status.setText(status[:20])
 
     def update_status(self):
         if 1 <= self.current_block < len(self.stimcycle):  # Session in progress and not last block
@@ -713,7 +748,6 @@ class CollectionWindow(PageWindow):
             self.stop_session()
 
     def start_session(self):
-        print("LOG TEST SUCCESS: SESSION STARTED", file=sys.stderr)
         if not self.ready_flag.is_set():
             return
         ongoing_thread = Thread(target=self.show_ongoing, name="OngoingThread")
@@ -734,6 +768,7 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
         if self.error_flag.is_set():
+            print("!!")
             infostat = self.csession.get_error()
             self.set_info_status(infostat, error=True)
         else:
