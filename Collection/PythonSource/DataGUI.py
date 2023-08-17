@@ -1,11 +1,12 @@
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
-import logging
+import io
 import json
 import numpy as np
 import os
 import pandas as pd
 import random
+import sys
 
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
@@ -13,7 +14,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
                              QComboBox, QPushButton, QFileDialog,
                              QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy)
 from PyQt5.QtGui import QIntValidator, QColor
-from PyQt5.QtCore import Qt, QObject, QTimer, QTime, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
@@ -88,7 +89,7 @@ class CollectionSession(Thread):
         self.sim.start_stream()
 
     def update_data(self):
-        print("Updating data...")
+        print("Updating data...", file=sys.stderr)
         try:
             if random.randint(1, 2) == 3:
                 self.error_message = "RandomError: Encountered random error."
@@ -309,7 +310,7 @@ class InfoWindow(PageWindow):
         middlebar = QHBoxLayout()
 
         # Session Parameters and Error Box
-        seslayout = QGridLayout()
+        seslayout = QGridLayout(self.sesframe)
         seslayout.addWidget(self.sname, 0, 0)
         seslayout.addWidget(self.fsname, 0, 1)
         seslayout.addWidget(self.pname, 1, 0)
@@ -326,13 +327,12 @@ class InfoWindow(PageWindow):
         seslayout.addWidget(self.fstimcycle, 6, 1)
         seslayout.addWidget(self.description, 7, 0, 1, 2)
         seslayout.addWidget(self.fdescription, 8, 0, 1, 2)
-        self.sesframe.setLayout(seslayout)
 
         middlebar.addWidget(self.sesframe)
 
         # Hardware Parameters
         rightlayout = QVBoxLayout()
-        hardlayout = QGridLayout()
+        hardlayout = QGridLayout(self.hardframe)
         hardlayout.setRowStretch(5, 2)
         hardlayout.setRowMinimumHeight(6, 2)
         hardlayout.addWidget(self.config, 1, 0)
@@ -347,7 +347,6 @@ class InfoWindow(PageWindow):
         hardlayout.addWidget(self.datelabel, 6, 0, Qt.AlignBottom)
         hardlayout.addWidget(self.timelabel, 6, 1, Qt.AlignBottom | Qt.AlignRight)
         hardlayout.addWidget(self.errlabel, 7, 0, 1, 2, Qt.AlignBottom)
-        self.hardframe.setLayout(hardlayout)
         rightlayout.addWidget(self.hardframe)
 
         middlebar.addLayout(rightlayout)
@@ -457,20 +456,31 @@ class InfoWindow(PageWindow):
     def goto_collection(self):
         self.goto("collect")
 
-class QTextEditLogger(logging.Handler, QObject):
-    appendPlainText = pyqtSignal(str)
-
-    def __init__(self, parent_layout):
+class QTextEditLogger(QPlainTextEdit):
+    def __init__(self, filepath, parent_layout):
         super().__init__()
-        QObject.__init__(self)
-        self.widget = QPlainTextEdit()
-        self.widget.setReadOnly(True)
-        self.appendPlainText.connect(self.widget.appendPlainText)
-        parent_layout.addWidget(self.widget)
+        self.logfile = open(filepath, mode='a+', buffering=1)
+        sys.stderr = self.logfile
+        self.readpos = 0
 
-    def emit(self, record):
-        msg = self.format(record)
-        self.appendPlainText.emit(msg)
+        self.watcher = QFileSystemWatcher()
+        self.watcher.addPath(filepath)
+        self.watcher.fileChanged.connect(self.update_log_window)
+
+        self.setReadOnly(True)
+        parent_layout.addWidget(self)
+
+    def update_log_window(self):
+        print("Update detected.")
+        self.logfile.seek(self.readpos)
+        line = self.logfile.readline()
+        self.appendPlainText(line)
+        self.readpos = self.logfile.tell()
+    
+    def __exit__(self, type, val, traceback):
+        self.logfile.close()
+        print(traceback)
+
 
 class CollectionWindow(PageWindow):
     def __init__(self):
@@ -582,7 +592,7 @@ class CollectionWindow(PageWindow):
 
         loglayout = QVBoxLayout(self.log_panel)
         loglayout.addWidget(self.log_label)
-        self.logbox = QTextEditLogger(loglayout)
+        self.logbox = self.init_logger(loglayout)
         gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
 
         layout.addLayout(gridlayout)
@@ -592,6 +602,10 @@ class CollectionWindow(PageWindow):
         self.update_status()
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
+
+    def init_logger(self, layout):
+        lfile = os.path.join(os.path.normpath(self.infopath + os.sep + os.pardir), "sessionlog.log")
+        return QTextEditLogger(lfile, layout)
 
     def wait_for_ready(self):
         i = 0
@@ -699,6 +713,7 @@ class CollectionWindow(PageWindow):
             self.stop_session()
 
     def start_session(self):
+        print("LOG TEST SUCCESS: SESSION STARTED", file=sys.stderr)
         if not self.ready_flag.is_set():
             return
         ongoing_thread = Thread(target=self.show_ongoing, name="OngoingThread")

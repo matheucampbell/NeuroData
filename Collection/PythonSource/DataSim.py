@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 from time import sleep
 from threading import Thread
 
@@ -9,6 +10,10 @@ class DataSim:
         self.buffer = np.zeros((5, 1))
         self.count = 1
         self.active = False
+        self.logger = None
+
+    def enable_logger(self):
+        pass
 
     def start_stream(self):
         self.active = True
