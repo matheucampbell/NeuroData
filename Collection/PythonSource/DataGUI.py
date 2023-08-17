@@ -1,18 +1,19 @@
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
+import logging
 import json
 import numpy as np
 import os
 import pandas as pd
 import random
-import threading
 
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
-                             QLabel, QLineEdit, QTextEdit, QComboBox, QPushButton, QFileDialog,
+                             QLabel, QLineEdit, QTextEdit, QPlainTextEdit, 
+                             QComboBox, QPushButton, QFileDialog,
                              QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy)
-from PyQt5.QtGui import QIntValidator
-from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QIntValidator, QColor
+from PyQt5.QtCore import Qt, QObject, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
@@ -298,11 +299,10 @@ class InfoWindow(PageWindow):
         layout = QVBoxLayout()
 
         # Directory Selector
-        dirlayout = QGridLayout()
+        dirlayout = QGridLayout(self.dirframe)
         dirlayout.addWidget(self.dirlabel, 0, 0, 1, 2)
         dirlayout.addWidget(self.curdir, 0, 2)
         dirlayout.addWidget(self.dir_select, 0, 3)
-        self.dirframe.setLayout(dirlayout)
         layout.addWidget(self.dirframe)
 
         # Parameter layout
@@ -457,6 +457,20 @@ class InfoWindow(PageWindow):
     def goto_collection(self):
         self.goto("collect")
 
+class QTextEditLogger(logging.Handler, QObject):
+    appendPlainText = pyqtSignal(str)
+
+    def __init__(self, parent_layout):
+        super().__init__()
+        QObject.__init__(self)
+        self.widget = QPlainTextEdit()
+        self.widget.setReadOnly(True)
+        self.appendPlainText.connect(self.widget.appendPlainText)
+        parent_layout.addWidget(self.widget)
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.appendPlainText.emit(msg)
 
 class CollectionWindow(PageWindow):
     def __init__(self):
@@ -504,7 +518,6 @@ class CollectionWindow(PageWindow):
         # Bottom Left Panel
         self.status_panel = QFrame(self)
         self.status_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
-        # self.status_panel.setFixedWidth(235)
         self.status_label = QLabel("Active")
         self.status_info = QLabel()
         self.timer_label = QLabel("00:00")
@@ -525,6 +538,12 @@ class CollectionWindow(PageWindow):
         self.stop_button.clicked.connect(self.stop_session)
         self.stop_button.setDisabled(True)
 
+        # Log Box
+        self.log_label = QLabel("Session Logs")
+        self.log_label.setObjectName("FieldLabels")
+        self.log_panel = QFrame(self)
+        self.log_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
+
         self.init()
 
     def init(self):
@@ -532,6 +551,7 @@ class CollectionWindow(PageWindow):
         gridlayout = QGridLayout()
         gridlayout.setColumnStretch(0, 1)
         gridlayout.setColumnStretch(1, 2)
+        gridlayout.setRowStretch(2, 1)
 
         infolayout = QHBoxLayout()
         leftlayout = QVBoxLayout()
@@ -543,15 +563,14 @@ class CollectionWindow(PageWindow):
         self.info_panel.setLayout(infolayout)
         gridlayout.addWidget(self.info_panel, 0, 0, 2, 1)
 
-        statuslayout = QGridLayout()
+        statuslayout = QGridLayout(self.status_panel)
         statuslayout.addWidget(self.state_indicator, 0, 0)
         statuslayout.addWidget(self.status_label, 0, 1)
-        statuslayout.addWidget(self.status_info, 1, 0, 1, 2)
-        statuslayout.addWidget(self.timer_label, 1, 2, alignment=Qt.AlignRight)
+        statuslayout.addWidget(self.status_info, 1, 0, 2, 2, alignment=Qt.AlignVCenter | Qt.AlignLeft)
+        statuslayout.addWidget(self.timer_label, 1, 2, alignment=Qt.AlignTop | Qt.AlignRight)
         statuslayout.addWidget(self.stimer_label, 0, 2, alignment=Qt.AlignTop | Qt.AlignRight)
-        statuslayout.addWidget(self.infslabel, 2, 0, 1, 2)
-        statuslayout.addWidget(self.info_status, 2, 2)
-        self.status_panel.setLayout(statuslayout)
+        statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, alignment=Qt.AlignBottom | Qt.AlignLeft)
+        statuslayout.addWidget(self.info_status, 2, 2, alignment=Qt.AlignBottom | Qt.AlignLeft)
         gridlayout.addWidget(self.status_panel, 0, 1)
 
         buttonlayout = QGridLayout()
@@ -560,6 +579,11 @@ class CollectionWindow(PageWindow):
         buttonlayout.addWidget(self.start_button, 1, 0, 1, 2)
         buttonlayout.addWidget(self.stop_button, 1, 2, 1, 2)
         gridlayout.addLayout(buttonlayout, 1, 1)
+
+        loglayout = QVBoxLayout(self.log_panel)
+        loglayout.addWidget(self.log_label)
+        self.logbox = QTextEditLogger(loglayout)
+        gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
 
         layout.addLayout(gridlayout)
         self.setLayout(layout)
