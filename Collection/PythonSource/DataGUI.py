@@ -681,6 +681,7 @@ class CollectionWindow(PageWindow):
         self.set_info()
         self.update_status()
         self.set_start_mode('Start')
+        self.logbox.clear()
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
         self.csession.start()
@@ -822,7 +823,7 @@ class CollectionWindow(PageWindow):
         elif mode == 'New Session':
             self.start_button.disconnect()
             self.start_button.pressed.connect(self.new_session)
-            self.start_button.setDisabled(False)
+            self.start_button.setDisabled(disabled)
             self.start_button.setText("New Session")
 
     def pause_stream(self):
