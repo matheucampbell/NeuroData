@@ -15,6 +15,7 @@ from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
+from typing import Literal
 from DataSim import DataSim
 from style import Style
 
@@ -85,6 +86,9 @@ class CollectionSession(Thread):
         self.board.log_message(level, message)
 
     def prepare(self):
+        if self.board.is_prepared():
+            self.ready_flag.set()
+            return
         self.log_message(self.infolevel, "[GUI]: Preparing board...")
         try:
             # proc = ExceptableThread(target=self.board.prepare_session, daemon=True, name="PrepThread")  # uncomment
@@ -111,6 +115,7 @@ class CollectionSession(Thread):
             self.error_flag.set()
 
     def start_stream(self):
+        self.log_message(self.infolevel, "[GUI]: Stream started.")
         if not self.ready_flag.is_set():
             return
         # self.board.start_stream()  # Uncomment
@@ -142,9 +147,10 @@ class CollectionSession(Thread):
     def run(self):
         self.prepare()
 
-        while not self.start_event.is_set() and not self.stop_event.is_set():
+        while not self.start_event.is_set() and not self.stop_event.is_set():  # In ready state
             sleep(0.1)
-        if self.stop_event.is_set():
+        if self.error_flag.is_set():  # Probably window closed before starting stream
+            # self.board.release_session()  # Uncomment
             return
         
         self.start_stream()
@@ -155,11 +161,18 @@ class CollectionSession(Thread):
             sleep(5)
             self.update_data()
 
-        if error:
+        if error:  # Error during collection (window close counted as error)
             self.end_session()
             return
-        if stopped:
-            self.end_session()
+        if stopped:  # Stopped by user or natural end of session
+            self.pause_session()  # Change to pause_session
+
+    def pause_session(self):
+        # self.board.stop_stream()  # Uncomment
+        self.sim.stop_stream()  # Remove
+        self.ready_flag.clear()
+        self.ongoing.clear()
+        self.log_message(self.infolevel, "[GUI]: Stream stopped.")
 
     def end_session(self):
         self.save_data()
@@ -202,10 +215,10 @@ class StateIndicator(QFrame):
 
 
 class PageWindow(QFrame):
-    gosig = pyqtSignal(str)
+    gosig = pyqtSignal(str, bool)
 
-    def goto(self, name):
-        self.gosig.emit(name),
+    def goto(self, name, reset=False):
+        self.gosig.emit(name, reset),
 
 
 class DataCollectionGUI(QMainWindow):
@@ -230,15 +243,17 @@ class DataCollectionGUI(QMainWindow):
         self.stack.addWidget(widget)
         widget.gosig.connect(self.goto)
 
-    @pyqtSlot(str)
-    def goto(self, name):
+    @pyqtSlot(str, bool)
+    def goto(self, name, reset=False):
         widget = self.pages[name]
+        if reset:
+            widget.reset()
         self.stack.setCurrentWidget(widget)
 
     def closeEvent(self, event):
         cwin = self.pages["collect"]
         if self.stack.currentWidget() == cwin:
-            cwin.stop_session()
+            cwin.csession.error_flag.set()
         event.accept()
 
 
@@ -260,6 +275,7 @@ class InfoWindow(PageWindow):
         self.sespath = None
         self.infodict['Date'] = self.date
         self.infodict['Time'] = self.time
+        self.board = None
         
         # Directory Row
         self.dirlabel = QLabel("Session directory: ")
@@ -322,7 +338,7 @@ class InfoWindow(PageWindow):
 
         # Confirmation
         self.confirm_button = QPushButton("Confirm")
-        self.confirm_button.clicked.connect(self.confirm_and_start)
+        self.confirm_button.clicked.connect(self.confirm)
 
         self.dir = self.curdir.text()
         self.colwin = collection_window
@@ -387,31 +403,47 @@ class InfoWindow(PageWindow):
         layout.addWidget(self.confirm_button)
         self.setLayout(layout)
 
+    def reset(self):
+        self.fbcount.clear()
+        self.fblength.clear()
+        self.fstimcycle.clear()
+        self.fdescription.clear()
+
+        self.date = datetime.now().strftime("%m-%d-%y")
+        self.time = datetime.now().strftime("%H:%M")
+        self.infodict['Date'] = self.date
+        self.infodict['Time'] = self.time
+
     def init_combobox(self, cbox, default, *options):
         cbox.setCurrentText(default)
         cbox.addItems(options)
 
-    def confirm_and_start(self):
+    def confirm(self):
         if not (res := self.check_info())[0]:
             self.errlabel.setText(f"Error: {res[1]}")
-            return
         else:
-            self.errlabel.setText("")
+            self.errlabel.setText(" ")
             self.save_info()
-        
-        params = BrainFlowInputParams()
-        params.serial_port = self.fserialport.text()
-        bid = self.boardmap[self.fmodel.currentText()][0]
-        try:
-            board = BoardShim(bid, params)
-        except brainflow.BrainFlowError as E:
-            self.errlabel.setText(
-                f"Error creating BoardShim object.\n{E}"
-            )
-            return
+            if self.board:
+                self.start(False)
+            else:
+                self.start(True)
+    
+    def start(self, new):
+        if new:
+            params = BrainFlowInputParams()
+            params.serial_port = self.fserialport.text()
+            bid = self.boardmap[self.fmodel.currentText()][0]
+            try:
+                self.board = BoardShim(bid, params)
+            except brainflow.BrainFlowError as E:
+                self.errlabel.setText(
+                    f"Error creating BoardShim object.\n{E}"
+                )
+                return
 
-        session = CollectionSession(board, self.sespath, int(self.fbuffsize.text()))
-        self.colwin.activate(os.path.join(self.sespath, "info.json"), session)
+        session = CollectionSession(self.board, self.sespath, int(self.fbuffsize.text()))
+        self.colwin.init_session(os.path.join(self.sespath, "info.json"), session, new)
         self.goto_collection()
     
     def check_info(self):
@@ -478,7 +510,7 @@ class InfoWindow(PageWindow):
         blength = int(blength)
         info['Annotations'] = [(float(blength*k), f"Block{k}") for k in range(1, bcount+1)]
 
-        suffix = self.date + "_" + self.time.replace(":", "")
+        suffix = self.date + "_" + str(datetime.now().timestamp()).split(".")[1]
         self.sespath = os.path.join(self.curdir.text(), f"session_{suffix}")
         os.makedirs(self.sespath, exist_ok=True, mode=0o777)
         with open(os.path.join(self.sespath, "info.json"), 'w') as f:
@@ -493,7 +525,7 @@ class InfoWindow(PageWindow):
 
 
 class QTextEditLogger(QPlainTextEdit):
-    def __init__(self, filepath, parent_layout):
+    def __init__(self, filepath, parent_layout=None):
         super().__init__()
         self.logfile = open(filepath, buffering=1)
         self.readpos = 0
@@ -504,7 +536,11 @@ class QTextEditLogger(QPlainTextEdit):
 
         self.setReadOnly(True)
         self.setBackgroundVisible(True)
-        parent_layout.addWidget(self)
+        if parent_layout:
+            self.mount(parent_layout)
+
+    def mount(self, layout):
+        layout.addWidget(self)
 
     def update_log_window(self):
         self.logfile.seek(self.readpos)
@@ -522,30 +558,37 @@ class CollectionWindow(PageWindow):
         super().__init__()
         self.setObjectName("FullFrame")
 
-    def activate(self, infopath, csession):
+    def init_session(self, infopath, csession, new=True):
+        """Set up for collection session"""
         self.csession = csession
-
-        self.infopath = infopath
-        with open(infopath, 'r') as i:
-            self.info = json.loads(i.read())
-
         flags = self.csession.get_flags()
         # Only set by collection thread to indicate board status
         self.ready_flag, self.ongoing, self.error_flag = flags[0]
         # Start set by GUI thread to start collection, but stop may be set by either collection or GUI thread
         self.start_event, self.stop_event = flags[1]
 
-        self.session_status = "Preparing"
+        self.infopath = infopath
+        with open(infopath, 'r') as i:
+            self.info = json.loads(i.read())
+
         self.bcount = int(self.info['SessionParams']['BlockCount'])
         self.blength = int(self.info['SessionParams']['BlockLength'])
         self.stimcycle = self.info['SessionParams']['StimCycle']
 
+        self.session_status = "Preparing"
         self.current_block = 0
         self.start_time = None
         self.t = 0
         self.complete = False
         self.timer = QTimer(self)
 
+        if new:
+            self.build_frame()
+            self.fill_frame()
+        self.activate()
+
+    def build_frame(self):
+        """Create frames/widgets"""
         # Top section
         self.info_panel = QFrame(self)
         self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
@@ -579,18 +622,18 @@ class CollectionWindow(PageWindow):
         self.start_button.clicked.connect(self.start_session)
         self.start_button.setDisabled(True)
         self.stop_button = QPushButton("Stop")
-        self.stop_button.clicked.connect(self.stop_session)
+        self.stop_button.clicked.connect(self.pause_stream)
         self.stop_button.setDisabled(True)
 
         # Log Box
         self.log_label = QLabel("Session Logs")
+        self.logbox = self.init_logger()
         self.log_label.setObjectName("FieldLabels")
         self.log_panel = QFrame(self)
         self.log_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
-        self.init()
-
-    def init(self):
+    def fill_frame(self):
+        """Inserts widgets in layouts"""
         layout = QVBoxLayout()
         gridlayout = QGridLayout()
         gridlayout.setColumnStretch(0, 1)
@@ -628,22 +671,24 @@ class CollectionWindow(PageWindow):
 
         loglayout = QVBoxLayout(self.log_panel)
         loglayout.addWidget(self.log_label, Qt.AlignTop | Qt.AlignLeft)
-        self.logbox = self.init_logger(loglayout)
+        self.logbox.mount(loglayout)
         gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
         layout.addLayout(gridlayout)
         self.setLayout(layout)
 
+    def activate(self):
+        """Set starting fields and begin session"""
         self.set_info()
         self.update_status()
+        self.set_start_mode('Start')
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
-
         self.csession.start()
 
-    def init_logger(self, layout):
+    def init_logger(self):
         lfile = os.path.join(os.path.normpath(self.infopath + os.sep + os.pardir), "sessionlog.log")
         self.csession.activate_logger(lfile)
-        return QTextEditLogger(lfile, layout)
+        return QTextEditLogger(lfile)
 
     def wait_for_ready(self):
         i = 0
@@ -749,7 +794,7 @@ class CollectionWindow(PageWindow):
             self.session_status = "Complete"
             self.current_block = self.bcount
             self.timer_label.setText("00:00")
-            self.stop_session()
+            self.pause_stream()  # Change to pause_stream
 
     def start_session(self):
         if not self.ready_flag.is_set():
@@ -763,7 +808,34 @@ class CollectionWindow(PageWindow):
         self.timer.start(10)  # Timer interval in milliseconds
         self.entry_button.setDisabled(False)
         self.start_button.setDisabled(True)
-        self.stop_button.setDisabled(False)        
+        self.stop_button.setDisabled(False)
+
+    def new_session(self):
+        self.goto("info", True)
+
+    def set_start_mode(self, mode=Literal['Start', 'New Session'], disabled=False):
+        if mode == 'Start':
+            self.start_button.disconnect()
+            self.start_button.pressed.connect(self.start_session)
+            self.start_button.setDisabled(disabled)
+            self.start_button.setText('Start')
+        elif mode == 'New Session':
+            self.start_button.disconnect()
+            self.start_button.pressed.connect(self.new_session)
+            self.start_button.setDisabled(False)
+            self.start_button.setText("New Session")
+
+    def pause_stream(self):
+        self.stop_event.set()
+        self.timer.stop()
+        self.state_indicator.set_active(False)
+        self.stop_button.setDisabled(True)
+        self.entry_button.setDisabled(True)
+        if not self.error_flag.is_set():
+            self.set_start_mode('New Session')
+            self.set_info_status("Complete", error=False)
+        else:
+            self.set_info_status(self.csession.get_error(), error=True)
 
     def stop_session(self):
         self.stop_event.set()
@@ -772,8 +844,7 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
         if self.error_flag.is_set():
-            infostat = self.csession.get_error()
-            self.set_info_status(infostat, error=True)
+            self.set_info_status(self.csession.get_error(), error=True)
         else:
             self.set_info_status("Complete", error=False)
 
