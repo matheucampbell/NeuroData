@@ -16,6 +16,7 @@ from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqt
 from time import sleep, ctime
 from threading import Thread, Event
 from DataSim import DataSim
+from style import Style
 
 # Multi-page structure adapted from 
 # https://stackoverflow.com/questions/56867107/how-to-make-a-multi-page-application-in-pyqt5
@@ -215,8 +216,7 @@ class DataCollectionGUI(QMainWindow):
         self.register(InfoWindow(cwindow), "info")
         self.stack.setCurrentWidget(self.pages['info'])
 
-        with open("style.txt", 'r') as f:
-            self.setStyleSheet(f.read())
+        self.setStyleSheet(Style.style)
         self.show()
 
     def register(self, widget, name):
