@@ -48,7 +48,7 @@ QTextEdit {
 }
 QPlainTextEdit{
     font-family: MonoSpace;
-    font-size: 11px;
+    font-size: 12px;
 }
 QComboBox {
     padding: 2px;

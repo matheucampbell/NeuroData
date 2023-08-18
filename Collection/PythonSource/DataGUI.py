@@ -484,6 +484,7 @@ class InfoWindow(PageWindow):
     def goto_collection(self):
         self.goto("collect")
 
+
 class QTextEditLogger(QPlainTextEdit):
     def __init__(self, filepath, parent_layout):
         super().__init__()
@@ -503,7 +504,7 @@ class QTextEditLogger(QPlainTextEdit):
         line = self.logfile.read()
         self.appendPlainText(line)
         self.readpos = self.logfile.tell()
-    
+
     def __exit__(self, type, val, traceback):
         self.logfile.close()
         print(traceback)
@@ -619,7 +620,7 @@ class CollectionWindow(PageWindow):
         gridlayout.addLayout(buttonlayout, 1, 1)
 
         loglayout = QVBoxLayout(self.log_panel)
-        loglayout.addWidget(self.log_label)
+        loglayout.addWidget(self.log_label, Qt.AlignTop | Qt.AlignLeft)
         self.logbox = self.init_logger(loglayout)
         gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
         layout.addLayout(gridlayout)
