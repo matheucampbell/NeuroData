@@ -15,6 +15,7 @@ from PyQt5.QtGui import QIntValidator
 from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
 from time import sleep, ctime
 from threading import Thread, Event
+from DataSim import DataSim
 from style import Style
 
 # Multi-page structure adapted from 
@@ -65,6 +66,7 @@ class CollectionSession(Thread):
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
         super().__init__(name="CollectionThread")
         self.board = boardshim
+        self.sim = DataSim()  # Remove
         self.buffsize = buffsize
         self.sespath = sespath
         self.fname = "data_" + ctime()[-13:-8].replace(":", "") + ".csv"
@@ -85,12 +87,13 @@ class CollectionSession(Thread):
     def prepare(self):
         self.log_message(self.infolevel, "[GUI]: Preparing board...")
         try:
-            proc = ExceptableThread(target=self.board.prepare_session, daemon=True, name="PrepThread")
+            # proc = ExceptableThread(target=self.board.prepare_session, daemon=True, name="PrepThread")  # uncomment
+            proc = ExceptableThread(target=sleep, args=(5,), daemon=True, name="PrepThread")  # remove
             proc.start()
             while proc.is_alive():
                 if self.stop_event.is_set() or self.error_flag.is_set():
                     raise CollectionSession.PrepInterruptedException("Board preparation interrupted.")
-            if self.board.is_prepared():  # Remove second part for real operation
+            if self.board.is_prepared() or True:  # Remove second part
                 self.ready_flag.set()
                 self.log_message(self.infolevel, "[GUI]: Board preparation successful.")
             else:
@@ -110,18 +113,21 @@ class CollectionSession(Thread):
     def start_stream(self):
         if not self.ready_flag.is_set():
             return
-        self.board.start_stream()
+        # self.board.start_stream()  # Uncomment
+        self.sim.start_stream()  # Remove
 
     def update_data(self):
         try:
-            if random.randint(1, 2) == 3:
+            if random.randint(1, 2) == 3:  # Remove block
                 self.error_message = "RandomError: Encountered random error."
                 self.log_message(self.infolevel, self.error_message)
                 self.error_flag.set()
             if not self.data.any():
-                self.data = self.board.get_board_data()
+                # self.data = self.board.get_board_data()  # Uncomment
+                self.data = self.sim.get_data()  # Remove
             else:
-                self.data = np.hstack((self.data, self.board.get_board_data()))
+                # self.data = np.hstack((self.data, self.board.get_board_data()))  # Uncomment
+                self.data = np.hstack((self.data, self.sim.get_data()))  # Remove
             self.save_data()
         except brainflow.BrainFlowError as E:
             self.error_message = f"Error: {E}"
@@ -157,8 +163,9 @@ class CollectionSession(Thread):
 
     def end_session(self):
         self.save_data()
-        self.board.stop_stream()
-        self.board.release_session()
+        # self.board.stop_stream()  # Uncomment
+        # self.board.release_session()  # Uncomment
+        self.sim.stop_stream()  # Remove
         self.ready_flag.clear()
         self.ongoing.clear()
         self.log_message(self.infolevel, "[GUI]: Session ended.")
@@ -175,7 +182,7 @@ class StateIndicator(QFrame):
         super().__init__()
         self.setFixedSize(dia, dia)
         self.dia = dia
-        self.setFrameShape(QFrame.StyledPanel)
+        self.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
         self.active = active_color
         self.inactive = inactive_color
@@ -383,6 +390,7 @@ class InfoWindow(PageWindow):
             self.errlabel.setText(f"Error: {res[1]}")
             return
         else:
+            self.errlabel.setText("")
             self.save_info()
         
         params = BrainFlowInputParams()
@@ -392,7 +400,7 @@ class InfoWindow(PageWindow):
             board = BoardShim(bid, params)
         except brainflow.BrainFlowError as E:
             self.errlabel.setText(
-                "Error creating BoardShim object.\n{E}"
+                f"Error creating BoardShim object.\n{E}"
             )
             return
 
@@ -758,7 +766,6 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
         if self.error_flag.is_set():
-            print("!!")
             infostat = self.csession.get_error()
             self.set_info_status(infostat, error=True)
         else:
