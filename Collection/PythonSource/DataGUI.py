@@ -187,12 +187,18 @@ class StateIndicator(QFrame):
         self.active = active_color
         self.inactive = inactive_color
         self.set_active(False)
+        self.on = False
 
     def set_active(self, active=True):
+        self.on = active
         if active:
             self.setStyleSheet(f"background-color: {self.active}; border-radius: {self.dia//2}px;")
         else:
             self.setStyleSheet(f"background-color: {self.inactive}; border-radius: {self.dia//2}px;")
+        self.update()
+
+    def is_active(self):
+        return self.on
 
 
 class PageWindow(QFrame):
@@ -606,11 +612,11 @@ class CollectionWindow(PageWindow):
         statuslayout.setColumnStretch(2, 1)
         statuslayout.addWidget(self.state_indicator, 0, 0)
         statuslayout.addWidget(self.status_label, 0, 1)
-        statuslayout.addWidget(self.status_info, 1, 0, 2, 2, alignment=Qt.AlignTop | Qt.AlignLeft)
-        statuslayout.addWidget(self.timer_label, 1, 2, alignment=Qt.AlignTop | Qt.AlignRight)
-        statuslayout.addWidget(self.stimer_label, 0, 2, alignment=Qt.AlignTop | Qt.AlignRight)
-        statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, alignment=Qt.AlignBottom | Qt.AlignLeft)
-        statuslayout.addWidget(self.info_status, 2, 2, alignment=Qt.AlignBottom | Qt.AlignLeft)
+        statuslayout.addWidget(self.status_info, 1, 0, 2, 2, Qt.AlignTop | Qt.AlignLeft)
+        statuslayout.addWidget(self.timer_label, 1, 2, Qt.AlignTop | Qt.AlignRight)
+        statuslayout.addWidget(self.stimer_label, 0, 2, Qt.AlignTop | Qt.AlignRight)
+        statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
+        statuslayout.addWidget(self.info_status, 2, 2, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
         gridlayout.addWidget(self.status_panel, 0, 1)
 
         buttonlayout = QGridLayout()
@@ -699,7 +705,7 @@ class CollectionWindow(PageWindow):
             self.info_status.setStyleSheet("color: #c20808")
         else:
             self.info_status.setStyleSheet("color: #c5cfde")
-        self.info_status.setText(status[:20])
+        self.info_status.setText(status[:25])
 
     def update_status(self):
         if 1 <= self.current_block < len(self.stimcycle):  # Session in progress and not last block
@@ -716,9 +722,9 @@ class CollectionWindow(PageWindow):
         else:  # Negative current block or current block > bcount. Should never happen.
             return
         
-        if self.stimcycle[self.current_block-1] == '1':
+        if self.stimcycle[self.current_block-1] == '1' and not self.state_indicator.is_active():
             self.state_indicator.set_active(True)
-        else:
+        elif self.stimcycle[self.current_block-1] == '0' and self.state_indicator.is_active():
             self.state_indicator.set_active(False)
 
     def update_timer(self):
