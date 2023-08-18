@@ -147,7 +147,7 @@ class CollectionSession(Thread):
     def run(self):
         self.prepare()
 
-        while not self.start_event.is_set() and not self.stop_event.is_set():  # In ready state
+        while not self.start_event.is_set() and not self.error_flag.is_set():  # In ready state
             sleep(0.1)
         if self.error_flag.is_set():  # Probably window closed before starting stream
             # self.board.release_session()  # Uncomment

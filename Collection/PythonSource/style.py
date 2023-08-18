@@ -10,7 +10,8 @@ class Style:  # This is some questionable stuff
     }
     QLabel {
         color: #c5cfde;
-        font-size: 15px;
+        font: Candara;
+        font-size: 17px;
     }
     #FieldLabels { font-weight: bold }
     #ErrorLabel { color: #c20808 }
