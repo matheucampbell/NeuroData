@@ -64,7 +64,7 @@ parser = argparse.ArgumentParser(
                 ' of results.',
     formatter_class=argparse.RawTextHelpFormatter)
 
-parser.add_argument('-p', '--project-name', help="Project name", required=True)
+parser.add_argument('-p', '--project-name', help="Project name")
 parser.add_argument('-n', '--subject-name', help="The name of a particular data collection subject")
 parser.add_argument('-r', '--response-type', help="EEG Response Type (SSVEP|ERP|other)")
 parser.add_argument('-s', '--stimulus-type', help="Stimulus type (visual|audio|other)")
@@ -75,6 +75,10 @@ parser.add_argument('-m', '--headset-model', help="Headset model (CytonDaisy|Cyt
 
 args = parser.parse_args()
 qstring = query_criteria(args)
+if not qstring and input("No search criteria provided. Download all available data? (y/N) ") != "y":
+    print("Exiting")
+    sys.exit()
+
 print("Searching for sessions by the following criteria: \n" + qstring)
 
 # Query for sessions
@@ -87,6 +91,7 @@ print(f"{count} session found." if count == 1 else
       f"{count} sessions found.\n")
 
 if not count:
+    print("Try again with different criteria.")
     sys.exit()
 
 print("Project\t\tSubject\t\t\tDate")
