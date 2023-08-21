@@ -1,5 +1,8 @@
-''' Upload new data session and associated info.json to Redivis.
-    -s --session-path: Path to directory containing a properly formatted info.json and data.csv files.. '''
+"""
+Upload new data session and associated info.json to Redivis.
+    -s --session-path: Path to directory containing a properly formatted info.json and data.csv files.
+    -u --username: Redivis username
+"""
 
 import argparse
 import simplejson as json
