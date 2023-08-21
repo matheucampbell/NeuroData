@@ -2,8 +2,8 @@
 Data collection is at best a long and boring process, so here's a guide to minimize obstacles.
 
 ## Preparation
-1. Find a subject. Think about your project or application and which subjects would be best suited. Note that, generally, people with shorter hair make for easier and cleaner data collection.\
-2. Before running a data collection session, decide on a time and location. Plan when and where to get the headset and who to get it from. Let people know where it'll go afterwards.\
+1. Find a subject. Think about your project or application and which subjects would be best suited. Note that, generally, people with shorter hair make for easier and cleaner data collection.
+2. Before running a data collection session, decide on a time and location. Plan when and where to get the headset and who to get it from. Let people know where it'll go afterwards.
 3. Design your data collection session. Think about the reaction you want to measure and how you will induce it. Also think about how you will record it.
 
 Design Considerations
