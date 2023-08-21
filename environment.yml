@@ -2,9 +2,11 @@ name: collection-env
 channels:
   - defaults
 dependencies:
-  - brainflow=5.9.0
   - numpy=1.25.2
-  - pandas=2.0.3
   - simplejson=3.17.6
   - redivis=0.11.1
-  - pyqt=5.15.7
+  - pandas=2.1.0
+  - pip
+    - pyqt=5.15.7
+    - brainflow=5.9.0
+    - redivis=0.11.1
