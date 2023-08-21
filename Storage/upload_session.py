@@ -10,8 +10,7 @@ from uuid import uuid4
 
 DATASET = "neurotechxcolumbia dataset"
 INFO_TABLE = "info_table"
-SESSION_TABLE = "session_table"
-USER_NAME = "matheu_campbell"
+DATA_TABLE = "data_table"
 HPARAMS = ("SampleRate", "HeadsetConfiguration", "HeadsetModel", "BufferSize")
 SPARAMS = ("ProjectName", "SubjectName", "ResponseType", "StimulusType",
            "BlockLength", "BlockCount", "StimCycle")
@@ -90,26 +89,39 @@ def unflatten(dct):
     return out
 
 
-def info_upload(ds_name, table_name, username, infodct):
+def info_upload(ds_name, table_name, username, infodct, fname):
     dataset = redivis.user(username).dataset(ds_name)
     table = dataset.table(table_name)
     flat = [flatten(infodct)]
-    upload = table.upload("info.json").create(str(flat), type="json")
-
+    with open('tmp', 'w') as f:
+        json.dump(flat, f)
+    with open('tmp') as f:
+        upload = table.upload(fname).create(f, type="json",
+                                            replace_on_conflict=True)
+    os.remove('tmp')
     return upload
 
+def session_upload(ds_name, table_name, username, datapath, fname):
+    dataset = redivis.user(username).dataset(ds_name)
+    table = dataset.table(table_name)
+    with open(datapath) as f:
+        file = table.add_file(fname, f)
+
+    return file
 
 parser = argparse.ArgumentParser(prog='SessionUploader',
                                  description='Uploads data session to Redivis')
-parser.add_argument('-s', '--session-path', required=True)
+parser.add_argument('-s', '--session-path', help="Path to session directory", required=True)
+parser.add_argument('-u', '--username', help="Your Redivis username", required=True)
 
 args = parser.parse_args()
-args.session_path = os.path.abspath(args.session_path)
-info_path = os.path.join(args.session_path, "info.json")
-data_path = os.path.join(args.session_path, "data.csv")
+session_path = os.path.abspath(args.session_path)
+username = args.username
+info_path = os.path.abspath(os.path.join(session_path, "info.json"))
+data_path = os.path.abspath(os.path.join(session_path, "data.csv"))
 
-if not os.path.isdir(args.session_path):
-    print(f"Error: Session path '{args.session_path}' invalid.")
+if not os.path.isdir(session_path):
+    print(f"Error: Session path '{session_path}' invalid.")
     sys.exit()
 
 if not os.path.exists(info_path):
@@ -127,15 +139,30 @@ with open(info_path) as fileinfo:
 if not verify_json(info):
     sys.exit()
 
+# Upload file to data table
+fname = os.path.basename(session_path).split("_")[2]
+try:
+    print("Attempting data.csv upload.")
+    file = session_upload(DATASET, DATA_TABLE, username, data_path, fname)
+except Exception as E:
+    print(f"Error: {str(E)}")
+    sys.exit()
+
+if isinstance(file, redivis.classes.File.File):
+    print(f"Data file successfully uploaded to {DATA_TABLE}")
+
 # Upload info JSON to Redivis
-fileID = str(uuid4())
+fname = os.path.basename(session_path)
+try:
+    file.get()
+    info['FileID'] = file.properties['id']
+    print("Attempting info.json upload.")
+    resp = info_upload(DATASET, INFO_TABLE, username, info, fname)
+except Exception as E:
+    print(f"Error: {str(E)}")
+    if 'tmp' in os.listdir():
+        os.remove('tmp')
+    sys.exit()
 
-resp = info_upload(DATASET, INFO_TABLE, USER_NAME, info)
-print(resp)
-
-# if resp.get('ResponseMetadata').get('HTTPStatusCode') == 200:
-#     print(f"Info JSON uploaded to {INFO_TABLE}.\n" + 
-#           f"Session CSV uploaded to {SESSION_TABLE}.")
-# else:
-#     print("An error occurred.")
-#     print(json.dumps(resp, ensure_ascii=True, indent=4))
+if isinstance(resp, redivis.classes.Upload.Upload):
+    print(f"Info JSON successfully uploaded to {INFO_TABLE}.\n")
