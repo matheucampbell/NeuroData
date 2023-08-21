@@ -14,20 +14,20 @@ This repo contains documentation and utility scripts for data collection, cloud 
     - Date
     - Time
 3. Proceed to collection. When complete, there will be a session folder containing the newly generated .csv file, its accompanying info file, and session log file.
-4. Supply info json and session .csv to the upload script (upload_session.py) to store data on Columbia Data Platform.
+4. Supply session directory to upload script (upload_session.py) to store data on Columbia Data Platform.
 
 ### Data retrieval:
 1. Decide which parameters are relevant.
-1. Use retrieval script (retrieve.py) to query Columbia Data Platform (Redivis). Data will be downloaded into a datapackage folder with the following structure.
+1. Use retrieval script (retrieve.py) to query Columbia Data Platform (Redivis) for sessions with your desired criteria. Data will be downloaded into a datapackage folder with the following structure.
 
 ```
 datapackage/
-    ├─ packageinfo.txt
-    ├─ 24601/
-    │  ├─ 24601_11-12-23.csv
+    ├─ query.txt
+    ├─ session_08_11_10_62625/
+    │  ├─ data_14_36.csv
     │  └─ info.json
-    └─ 10025/
-       ├─ 10024_11-13-25.csv
+    └─ session_09_10_11_10592/
+       ├─ data_13_25.csv
        └─ info.json
 ```
 
@@ -35,9 +35,10 @@ datapackage/
 1. Data retrieval by
     - project name
     - subject name
-    - stimulus type
-    - session date
     - response type
+    - stimulus type
+    - headset configuration
+    - headset model
     - any combination of the above
 
 ## Database Structure
