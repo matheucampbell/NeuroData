@@ -1,33 +1,32 @@
-''' Upload new data session to S3 and save associated info JSON on DynamoDB.
-    -i --info-path: Path to a complete and properly formatted JSON object. All fields should be
-                    filled out except S3Path and SessionID.
-    -s --session-path: Path to .csv containing data session. '''
+''' Upload new data session and associated info.json to Redivis.
+    -s --session-path: Path to directory containing a properly formatted info.json and data.csv files.. '''
 
 import argparse
-import boto3
 import simplejson as json
 import os
-import random
+import redivis
 import sys
+from uuid import uuid4
 
-from botocore.exceptions import ClientError
-from boto3.dynamodb.types import TypeSerializer, TypeDeserializer
-
-TABLE = "neuro-projects"
-PROJECT_ENTRY = ("ProjectList", 0)
-SUBJECT_ENTRY = ("SubjectList", 1)
+DATASET = "neurotechxcolumbia dataset"
+INFO_TABLE = "info_table"
+SESSION_TABLE = "session_table"
+USER_NAME = "matheu_campbell"
+HPARAMS = ("SampleRate", "HeadsetConfiguration", "HeadsetModel", "BufferSize")
+SPARAMS = ("ProjectName", "SubjectName", "ResponseType", "StimulusType",
+           "BlockLength", "BlockCount", "StimCycle")
 
 def verify_json(json: dict):
     valid = True
-    req = ['SessionParams', 'HardwareParams', 'ProjectName', 'Description',
-           'Annotations', 'Date', 'Time', 'S3Path', 'SessionID']
+    req = ['SessionParams', 'HardwareParams', 'Description',
+           'Annotations', 'Date', 'Time', 'FileID']
 
     for field in req:
         if field not in json:
             print(f"Info JSON missing field: '{field}'.")
             valid = False
             
-    req2 = ['SubjectName', 'ResponseType', 'StimulusType',
+    req2 = ['SubjectName', 'ProjectName', 'ResponseType', 'StimulusType',
             'BlockLength', 'BlockCount', 'StimCycle']
     for field in req2:
         if field not in json.get('SessionParams'):
@@ -42,116 +41,101 @@ def verify_json(json: dict):
 
     return valid
 
-def serialize(dct):
-    tds = TypeSerializer()
-    return {
-        key: tds.serialize(val)
-        for key, val in dct.items()
-    }
 
-def deserialize(dct):
-    tds = TypeDeserializer()
-    return {
-        key: tds.deserialize(val)
-        for key, val in dct.items()
-    }
+def dictify(annotations):
+    """Convert annotation list to json formatted string."""
+    out = {}
+    for a in annotations:
+        out[str(a[0])] = a[1]
+    
+    return out
 
-def dynamo_upload(db_client, s3_client, table, bucket, info, sesID, ses_path):
-    info['SessionID'] = sesID
-    info['S3Path'] = f"s3://{bucket}/{sesID}_{info['Date']}.csv"
-    item_dict = serialize(info)
+def listify(annotations):
+    """Convert annotation json to list"""
+    dct = json.loads(annotations)
+    out = []
+    for key, val in dct.items():
+        out.append((key, val))
+    return out
 
-    try:
-        resp = db_client.put_item(
-            TableName=table,
-            Item=item_dict,
-            ConditionExpression='attribute_not_exists(SessionID)')
+def flatten(dct):
+    flat = {}
+    for key, val in dct.items():
+        if isinstance(val, dict):
+            for k, v in flatten(val).items():
+                flat[k] = v
+        elif isinstance(val, list):
+            flat[key] = str(dictify(val)).replace("'", '"')
+        else:
+            flat[key] = val
+    return flat
 
-        s3_client.put_object(Bucket='neuro-session-bucket', Key=f"{sesID}_{info['Date']}.csv",
-                             Body=ses_path)
+def unflatten(dct):
+    """Convert from Redivis format to normal."""
+    out = {}
+    out['HardwareParams'] = {}
+    out['SessionParams'] = {}
+    hparams = ("SampleRate", "HeadsetConfiguration", "HeadsetModel", "BufferSize")
+    sparams = ("ProjectName", "SubjectName", "ResponseType", "StimulusType",
+               "BlockLength", "BlockCount", "StimCycle")
+    for key, val in dct.items():
+        if key == 'Annotations':
+            out[key] = listify(val)
+        elif key in hparams:
+            out['HardwareParams'][key] = val
+        elif key in sparams:
+            out['SessionParams'][key] = val
+        else:
+            out[key] = val
+    return out
 
-        return resp
 
-    except ClientError as E:  # Session with ID may already exist
-        if E['Error']['Code'] =='ConditionalCheckFailedException':
-            sesID = random.randint(10000, 99999)
-            return dynamo_upload(db_client, s3_client, table, bucket, info, sesID, ses_path)
-        return
+def info_upload(ds_name, table_name, username, infodct):
+    dataset = redivis.user(username).dataset(ds_name)
+    table = dataset.table(table_name)
+    flat = [flatten(infodct)]
+    upload = table.upload("info.json").create(str(flat), type="json")
 
-def check_list(db_client, target_list, target):
-    if target_list == "Projects":
-        key = {"ProjectName": PROJECT_ENTRY[0], "SessionID": PROJECT_ENTRY[1]}
-    elif target_list == "Subjects":
-        key = {"ProjectName": SUBJECT_ENTRY[0], "SessionID": SUBJECT_ENTRY[1]}
-
-    resp = db_client.get_item(TableName=TABLE, Key=serialize(key))
-    entry = deserialize(resp['Item'])
-
-    return target in entry[target_list]
-
-def add_subject(db_path, name):
-    with open(db_path, 'a') as file:
-        file.write('\n' + name)
-    return
-
-def add_project(db_path, name):
-    with open(db_path, 'a') as file:
-        file.write('\n' + name)
-    return
+    return upload
 
 
 parser = argparse.ArgumentParser(prog='SessionUploader',
-                                 description='Uploads data session to S3 and Dynamo')
+                                 description='Uploads data session to Redivis')
 parser.add_argument('-s', '--session-path', required=True)
-parser.add_argument('-i', '--info-path', required=True)
 
 args = parser.parse_args()
+args.session_path = os.path.abspath(args.session_path)
+info_path = os.path.join(args.session_path, "info.json")
+data_path = os.path.join(args.session_path, "data.csv")
 
-if os.path.splitext(args.session_path)[1] != '.csv':
-    print("Error: Session path must be a CSV file.")
-    sys.exit()
-
-if os.path.splitext(args.info_path)[1] != '.json':
-    print("Error: Info path must be a JSON file.")
-    sys.exit()
-
-if not os.path.exists(args.session_path):
+if not os.path.isdir(args.session_path):
     print(f"Error: Session path '{args.session_path}' invalid.")
     sys.exit()
-    
-if not os.path.exists(args.info_path):
-    print(f"Error: Info path '{args.info_path}' invalid.")
+
+if not os.path.exists(info_path):
+    print(f"Error: Info file not found in session directory.")
     sys.exit()
 
-with open(args.info_path) as fileinfo:
+if not os.path.exists(data_path):
+    print(f"Error: Data file not found in session directory.")
+    sys.exit()
+
+with open(info_path) as fileinfo:
     info = json.loads(fileinfo.read())
 
 # Confirm info JSON contains the right fields.
 if not verify_json(info):
     sys.exit()
 
-# Upload info JSON to DynamoDB
-ID = random.randint(10000, 99999)
-db = boto3.client('dynamodb')
-s3 = boto3.client('s3')
-bucket = "neuro-session-bucket"
-table = "neuro-projects"
+# Upload info JSON to Redivis
+fileID = str(uuid4())
 
-proj = info.get('ProjectName')
-if not check_list(db, 'Projects', proj):
-    if input(f"Subject \"{proj}\" not found. Add new project? (y/N) ") == "y":
-        add_project(proj)
+resp = info_upload(DATASET, INFO_TABLE, USER_NAME, info)
+print(resp)
 
-sub = info.get('SessionParams').get('SubjectName')
-if not check_list(db, 'Subjects', sub):
-    if input(f"Subject \"{sub}\" not found. Add new subject? (y/N) ") == "y":
-        add_subject(sub)
-
-resp = dynamo_upload(db, s3, table, bucket, info, ID, args.session_path)
-
-if resp.get('ResponseMetadata').get('HTTPStatusCode') == 200:
-    print(f"Info JSON uploaded to {table}.\n" + 
-          f"Session CSV uploaded to {bucket}.")
-else:
-    print("An error occurred.")
-    print(json.dumps(resp, ensure_ascii=True, indent=4))
+# if resp.get('ResponseMetadata').get('HTTPStatusCode') == 200:
+#     print(f"Info JSON uploaded to {INFO_TABLE}.\n" + 
+#           f"Session CSV uploaded to {SESSION_TABLE}.")
+# else:
+#     print("An error occurred.")
+#     print(json.dumps(resp, ensure_ascii=True, indent=4))

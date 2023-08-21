@@ -1,3 +1,4 @@
+"""Data collection GUI that outputs a session folder with a data file, session log, and info.json"""
 import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
@@ -27,6 +28,7 @@ def create_empty_info():
     return {
         "SessionParams": {
             "SubjectName": "",
+            "ProjectName": "",
             "ResponseType": "",
             "StimulusType": "",
             "BlockLength": "",
@@ -39,13 +41,11 @@ def create_empty_info():
             "HeadsetModel": "",
             "BufferSize": "100000"
         },
-        "ProjectName": "",
         "Description": "",
         "Annotations": [],
         "Date": datetime.now().strftime("%m-%d-%y"),
         "Time": datetime.now().strftime("%H:%M"),
-        "S3Path": None,
-        "SessionID": None
+        "FileID": ""
         }
 
 
@@ -70,7 +70,7 @@ class CollectionSession(Thread):
         self.sim = DataSim()  # Remove
         self.buffsize = buffsize
         self.sespath = sespath
-        self.fname = "data_" + ctime()[-13:-8].replace(":", "") + ".csv"
+        self.fname = "data.csv"
         self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
         self.start_event, self.stop_event = Event(), Event()
         self.data = np.zeros((5, 1))
@@ -449,6 +449,10 @@ class InfoWindow(PageWindow):
     def check_info(self):
         if not self.curdir.text().strip():
             return False, "No session directory supplied."
+        if "data.csv" in os.listdir(self.curdir.text().strip()):
+            return False, "Data file already in target directory."
+        if "info.json" in os.listdir(self.curdir.text().strip()):
+            return False, "Info JSON already in target directory."
         if not self.fsname.text().strip():
             return False, "No subject name supplied."
         if not self.fpname.text().strip():
@@ -492,6 +496,7 @@ class InfoWindow(PageWindow):
     def save_info(self):
         info = self.infodict
         info['SessionParams']['SubjectName'] = self.fsname.text().strip()
+        info['SessionParams']['ProjectName'] = self.fpname.text().strip()
         info['SessionParams']['ResponseType'] = self.frtype.currentText()
         info['SessionParams']['StimulusType'] = self.fstype.currentText()
         blength, bcount = self.fblength.text(), self.fbcount.text()
@@ -503,7 +508,6 @@ class InfoWindow(PageWindow):
         info['HardwareParams']['HeadsetModel'] = model
         info['HardwareParams']['SampleRate'] = str(self.boardmap[model][1])
         info['HardwareParams']['BufferSize'] = str(self.fbuffsize.text())
-        info['ProjectName'] = self.fpname.text().strip()
         info['Description'] = self.fdescription.toPlainText().strip()
 
         bcount = int(bcount)
@@ -680,7 +684,7 @@ class CollectionWindow(PageWindow):
         """Set starting fields and begin session"""
         self.set_info()
         self.update_status()
-        self.set_start_mode('Start')
+        self.set_start_mode('Start', True)
         self.logbox.clear()
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
@@ -734,7 +738,7 @@ class CollectionWindow(PageWindow):
 
     def set_info(self):
         sub = self.info['SessionParams'].get('SubjectName', '--') + '\n'
-        proj = self.info.get('ProjectName', '--') + '\n'
+        proj = self.info['SessionParams'].get('ProjectName', '--') + '\n'
         resp = self.info['SessionParams'].get('ResponseType', '--') + '\n'
         stype = self.info['SessionParams'].get('StimulusType', '--') + '\n\n'
         srate = self.info['HardwareParams'].get('SampleRate', '--') + '\n'
