@@ -6,7 +6,6 @@ import simplejson as json
 import os
 import redivis
 import sys
-from uuid import uuid4
 
 DATASET = "neurotechxcolumbia dataset"
 INFO_TABLE = "info_table"
@@ -14,6 +13,7 @@ DATA_TABLE = "data_table"
 HPARAMS = ("SampleRate", "HeadsetConfiguration", "HeadsetModel", "BufferSize")
 SPARAMS = ("ProjectName", "SubjectName", "ResponseType", "StimulusType",
            "BlockLength", "BlockCount", "StimCycle")
+
 
 def verify_json(json: dict):
     valid = True
@@ -49,13 +49,6 @@ def dictify(annotations):
     
     return out
 
-def listify(annotations):
-    """Convert annotation json to list"""
-    dct = json.loads(annotations)
-    out = []
-    for key, val in dct.items():
-        out.append((key, val))
-    return out
 
 def flatten(dct):
     flat = {}
@@ -68,25 +61,6 @@ def flatten(dct):
         else:
             flat[key] = val
     return flat
-
-def unflatten(dct):
-    """Convert from Redivis format to normal."""
-    out = {}
-    out['HardwareParams'] = {}
-    out['SessionParams'] = {}
-    hparams = ("SampleRate", "HeadsetConfiguration", "HeadsetModel", "BufferSize")
-    sparams = ("ProjectName", "SubjectName", "ResponseType", "StimulusType",
-               "BlockLength", "BlockCount", "StimCycle")
-    for key, val in dct.items():
-        if key == 'Annotations':
-            out[key] = listify(val)
-        elif key in hparams:
-            out['HardwareParams'][key] = val
-        elif key in sparams:
-            out['SessionParams'][key] = val
-        else:
-            out[key] = val
-    return out
 
 
 def info_upload(ds_name, table_name, username, infodct, fname):
@@ -101,6 +75,7 @@ def info_upload(ds_name, table_name, username, infodct, fname):
     os.remove('tmp')
     return upload
 
+
 def session_upload(ds_name, table_name, username, datapath, fname):
     dataset = redivis.user(username).dataset(ds_name)
     table = dataset.table(table_name)
@@ -109,7 +84,8 @@ def session_upload(ds_name, table_name, username, datapath, fname):
 
     return file
 
-parser = argparse.ArgumentParser(prog='SessionUploader',
+
+parser = argparse.ArgumentParser(prog='upload_session.py',
                                  description='Uploads data session to Redivis')
 parser.add_argument('-s', '--session-path', help="Path to session directory", required=True)
 parser.add_argument('-u', '--username', help="Your Redivis username", required=True)
@@ -140,7 +116,7 @@ if not verify_json(info):
     sys.exit()
 
 # Upload file to data table
-fname = os.path.basename(session_path).split("_")[2]
+fname = "data" + os.path.basename(session_path).split("_")[2] + ".csv"
 try:
     print("Attempting data.csv upload.")
     file = session_upload(DATASET, DATA_TABLE, username, data_path, fname)
