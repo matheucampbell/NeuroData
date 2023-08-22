@@ -6,10 +6,9 @@ This repo contains documentation and utility scripts for data collection, cloud 
 
 ### Data collection workflow:
 1. Design your data collection session. Prepare a stimulus script, location, and time. You may need at two laptops (one for data collection and one to provide stimulus).
-2. Define session info JSON via collection script CLI. See ObjectInfo.md for more about info JSON files.
-    - Session parameters: subject name, response type, stimulus type, block length, block count, and stim cycle
-    - Hardware parameters: sampling rate, headset configuration, buffer size
-    - Project name
+2. Define session info JSON via collection GUI. See ObjectInfo.md for more about info JSON files.
+    - Session parameters: subject name, project name, response type, stimulus type, block length, block count, and stim cycle
+    - Hardware parameters: sampling rate, buffer size, headset configuration, headset model
     - Description
     - Date
     - Time
