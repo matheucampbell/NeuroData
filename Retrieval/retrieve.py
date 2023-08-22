@@ -1,7 +1,8 @@
 import argparse
+import operator
+import os
 import redivis
 import simplejson as json
-import os
 import sys
 
 from datetime import datetime, timedelta
@@ -39,11 +40,37 @@ def reconstruct_info(row):
     return out
 
 
+def multisort(arr, attrs):
+    def partition(ls, attr):
+        parts = []
+        first = last = 0
+        while last < len(ls):
+            val = getattr(ls[first], attr)
+            while last < len(ls) and getattr(ls[last], attr) == val:
+                last += 1
+            parts.append(ls[first:last])
+            first = last
+        return parts
+
+    if len(attrs) == 1:
+            arr.sort(key=operator.attrgetter(attrs[0]))
+            return arr
+    else:
+        arr.sort(key=operator.attrgetter(attrs[0]))
+        p = partition(arr, attrs[0])
+        n = [multisort(l, attrs[1:]) for l in p]
+
+        return [i for j in n for i in j]
+        
+
 def gen_exp(parsed):
+    if not [v for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"]:
+        return f"""SELECT * from `{INFO_TABLE}`"""
+    
     def fieldmatch(field, val):
         return f"{field.title().replace('_', '')} = \"{val}\""
 
-    query = f"""SELECT * from `{INFO_TABLE}`\nWHERE """
+    query = f"""SELECT * from `{INFO_TABLE}` WHERE """
     query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"])
     return query
 
@@ -77,11 +104,11 @@ parser.add_argument('-a', '--after-date', help="include data collected after thi
 
 args = parser.parse_args()
 qstring = query_criteria(args)
-if not qstring and input("No search criteria provided. Download all available data? (y/N) ") != "y":
+if not qstring and input("No search criteria provided. Query for all available data? (y/N) ") != "y":
     print("Exiting")
     sys.exit()
-
-print("Searching for sessions by the following criteria: \n" + qstring)
+elif qstring:
+    print("Searching for sessions by the following criteria: \n" + qstring)
 
 # Query for sessions
 qexp = gen_exp(args)
@@ -112,10 +139,16 @@ if not count:
     print("Try again with different criteria.")
     sys.exit()
 
-print("Project\t\tSubject\t\t\tLength\t\tDate")
-print("------------------------------------------------------------------")
+print("Project\t\tSubject\t\t\tLength\t\tDate\t\tDescription")
+print("--------------------------------------------------------------------------------------------")
+
+rows = multisort(rows, ["ProjectName", "SubjectName", "Date"])
+
 for session in rows:
-    print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + str(int(session.BlockLength)*int(session.BlockCount))+"s" + "\t\t" + session.Date)
+    desc = session.Description if len(session.Description) <= 20 else session.Description[:17] + "..."
+    print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + 
+          str(int(session.BlockLength)*int(session.BlockCount))+"s" + "\t\t" + 
+          session.Date + "\t" + desc)
 
 if input("\nDownload all found sessions and their associated info JSON? (y/N) ") == "y":
     outpath = os.path.abspath("datapackage")
