@@ -4,7 +4,7 @@ import simplejson as json
 import os
 import sys
 
-from collections import namedtuple
+from datetime import datetime, timedelta
 
 DATASET = "neurotechxcolumbia dataset"
 INFO_TABLE = f"matheu_campbell.neurotechxcolumbia_dataset.info_table:rx53"
@@ -44,7 +44,7 @@ def gen_exp(parsed):
         return f"{field.title().replace('_', '')} = \"{val}\""
 
     query = f"""SELECT * from `{INFO_TABLE}`\nWHERE """
-    query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v])
+    query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"])
     return query
 
 
@@ -55,6 +55,8 @@ def query_criteria(parsed):
     ret += f"Stimulus Type: {parsed.stimulus_type}\n" if parsed.stimulus_type else ""
     ret += f"Headset Configuration: {parsed.headset_configuration}\n" if parsed.headset_configuration else ""
     ret += f"Headset Model: {parsed.headset_model}\n" if parsed.headset_model else ""
+    ret += f"Collected before: {parsed.before_date}\n" if parsed.before_date else ""
+    ret += f"Collected after: {parsed.after_date}\n" if parsed.after_date else ""
     return ret
 
 
@@ -70,8 +72,8 @@ parser.add_argument('-r', '--response-type', help="EEG Response Type (SSVEP|ERP|
 parser.add_argument('-s', '--stimulus-type', help="Stimulus type (visual|audio|other)")
 parser.add_argument('-c', '--headset-configuration', help="Headset configuration (standard|occipital|other)")
 parser.add_argument('-m', '--headset-model', help="Headset model (CytonDaisy|Cyton)")
-
-# TODO Add support for a specific date, a date range, or date max/min
+parser.add_argument('-b', '--before-date', help="include data collected before this date (MM-DD-YYYY) (inclusive); defaults to now")
+parser.add_argument('-a', '--after-date', help="include data collected after this date (MM-DD-YYYY) (inclusive); defaults to 10 years ago")
 
 args = parser.parse_args()
 qstring = query_criteria(args)
@@ -86,6 +88,20 @@ qexp = gen_exp(args)
 query = redivis.query(qexp)
 
 rows = query.list_rows()
+
+if args.before_date or args.after_date:
+    try:
+        bdate = datetime.strptime(args.before_date, "%m-%d-%Y") if args.before_date else datetime.now() - timedelta(days=3650)
+        adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date else datetime.now()
+    except ValueError:
+        print("Error: Incorrect date format; should be MM-DD-YYYY")
+
+    for row in rows:
+        rdate = datetime.strptime(row.Date, "%Y-%m-%d")
+        print(adate, rdate, bdate, adate <= rdate, adate <= rdate <= bdate)
+        if not adate <= rdate <= bdate:
+            rows.remove(row)
+
 count = len(rows)
 print(f"{count} session found." if count == 1 else
       f"{count} sessions found.\n")
@@ -94,14 +110,14 @@ if not count:
     print("Try again with different criteria.")
     sys.exit()
 
-print("Project\t\tSubject\t\t\tDate")
-print("--------------------------------------------------")
+print("Project\t\tSubject\t\t\tLength\t\tDate")
+print("------------------------------------------------------------------")
 for session in rows:
-    print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + session.Date)
+    print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + str(int(session.BlockLength)*int(session.BlockCount))+"s" + "\t\t" + session.Date)
 
-outpath = os.path.abspath("datapackage")
-os.makedirs(outpath, exist_ok=True)
 if input("\nDownload all found sessions and their associated info JSON? (y/N) ") == "y":
+    outpath = os.path.abspath("datapackage")
+    os.makedirs(outpath, exist_ok=True)
     with open(os.path.join(outpath, "query.txt"), 'w+') as file:
         file.write("Query Criteria\n")
         file.write(qstring)
