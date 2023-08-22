@@ -75,6 +75,11 @@ parser.add_argument('-m', '--headset-model', help="Headset model (CytonDaisy|Cyt
 
 args = parser.parse_args()
 qstring = query_criteria(args)
+
+if not qstring and input("No search criteria provided. Search for all available data? (y/N) ").lower() != "y":
+    print("Exiting.")
+    sys.exit()
+
 print("Searching for sessions by the following criteria: \n" + qstring)
 
 # Query for sessions
