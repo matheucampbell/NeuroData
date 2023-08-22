@@ -96,11 +96,13 @@ if args.before_date or args.after_date:
     except ValueError:
         print("Error: Incorrect date format; should be MM-DD-YYYY")
 
+    to_remove = []
     for row in rows:
         rdate = datetime.strptime(row.Date, "%Y-%m-%d")
-        print(adate, rdate, bdate, adate <= rdate, adate <= rdate <= bdate)
         if not adate <= rdate <= bdate:
-            rows.remove(row)
+            to_remove.append(row)
+    for r in to_remove:
+        rows.remove(r)
 
 count = len(rows)
 print(f"{count} session found." if count == 1 else
