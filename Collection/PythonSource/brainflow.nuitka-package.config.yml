@@ -1,0 +1,11 @@
+# Add to nuitka/plugins/standard/standard.nuitka-package.config before compilation
+# Compile with python -m nuitka --onefile --enable-plugin=pyqt5 --disable-console DataGUI.py
+- module-name: 'brainflow'
+  dlls:
+    - from_filenames:
+        relative_path: 'lib'
+        prefixes:
+          - 'BoardController*'
+        suffixes:
+          - 'dll'
+      when: 'standalone'

@@ -1,5 +1,5 @@
-### Retrieval Script
-## Usage
+## Retrieval Script
+### Usage
 
 ```
 usage: python retrieve.py [-h] -p PROJECT_NAME [-n SUBJECT_NAME] [-r RESPONSE_TYPE] [-s STIMULUS_TYPE] [-c HEADSET_CONFIGURATION] [-m HEADSET_MODEL]

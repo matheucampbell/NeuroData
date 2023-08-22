@@ -81,7 +81,7 @@ class CollectionSession(Thread):
         self.board.set_log_level(self.infolevel)
         self.board.set_log_file(fpath)
         self.lfpath = fpath
-    
+
     def log_message(self, level, message):
         self.board.log_message(level, message)
 
@@ -152,7 +152,7 @@ class CollectionSession(Thread):
         if self.error_flag.is_set():  # Probably window closed before starting stream
             # self.board.release_session()  # Uncomment
             return
-        
+
         self.start_stream()
         self.ongoing.set()
 
@@ -276,7 +276,7 @@ class InfoWindow(PageWindow):
         self.infodict['Date'] = self.date
         self.infodict['Time'] = self.time
         self.board = None
-        
+
         # Directory Row
         self.dirlabel = QLabel("Session directory: ")
         self.curdir = QLabel(os.getcwd())
@@ -428,7 +428,7 @@ class InfoWindow(PageWindow):
                 self.start(False)
             else:
                 self.start(True)
-    
+
     def start(self, new):
         if new:
             params = BrainFlowInputParams()
@@ -445,7 +445,7 @@ class InfoWindow(PageWindow):
         session = CollectionSession(self.board, self.sespath, int(self.fbuffsize.text()))
         self.colwin.init_session(os.path.join(self.sespath, "info.json"), session, new)
         self.goto_collection()
-    
+
     def check_info(self):
         if not self.curdir.text().strip():
             return False, "No session directory supplied."
@@ -473,7 +473,7 @@ class InfoWindow(PageWindow):
             return False, "Block count must be positive."
         elif bc > self.bcountmax:
             return False, f"Block count too high. (Max: {self.bcountmax})"
-        
+
         if not self.fstimcycle.text().strip():
             return False, "No stimulus cycle supplied."
         stimcycle = self.fstimcycle.text().strip()
@@ -490,7 +490,7 @@ class InfoWindow(PageWindow):
             return False, f"Buffer size too low. (Min: {self.buffsize_min})"
         if not self.fserialport.text().strip():
             return False, "No serial port supplied."
-        
+
         return True, ""
 
     def save_info(self):
@@ -771,7 +771,7 @@ class CollectionWindow(PageWindow):
             return
         else:  # Negative current block or current block > bcount. Should never happen.
             return
-        
+
         if self.stimcycle[self.current_block-1] == '1' and not self.state_indicator.is_active():
             self.state_indicator.set_active(True)
         elif self.stimcycle[self.current_block-1] == '0' and self.state_indicator.is_active():
@@ -792,7 +792,7 @@ class CollectionWindow(PageWindow):
 
         self.update_status()
         self.update_block(elapsed_time)
-    
+
     def update_block(self, elapsed):
         self.current_block = int(elapsed.total_seconds() / self.blength) + 1
         if self.current_block > self.bcount:

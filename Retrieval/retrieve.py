@@ -13,6 +13,7 @@ HPARAMS = ("SampleRate", "HeadsetConfiguration", "HeadsetModel", "BufferSize")
 SPARAMS = ("ProjectName", "SubjectName", "ResponseType", "StimulusType",
            "BlockLength", "BlockCount", "StimCycle")
 
+
 def listify(annotations):
     """Convert annotation json to list"""
     dct = json.loads(annotations)
@@ -23,9 +24,7 @@ def listify(annotations):
 
 
 def reconstruct_info(row):
-    out = {}
-    out['HardwareParams'] = {}
-    out['SessionParams'] = {}
+    out = {'HardwareParams': {}, 'SessionParams': {}}
     for key, val in row.items():
         if key == 'Annotations':
             out[key] = listify(val)
@@ -43,13 +42,14 @@ def reconstruct_info(row):
 def gen_exp(parsed):
     def fieldmatch(field, val):
         return f"{field.title().replace('_', '')} = \"{val}\""
-    
+
     query = f"""SELECT * from `{INFO_TABLE}`\nWHERE """
     query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v])
     return query
 
+
 def query_criteria(parsed):
-    ret =  f"Project: {parsed.project_name}\n" if parsed.project_name else ""
+    ret = f"Project: {parsed.project_name}\n" if parsed.project_name else ""
     ret += f"Subject: {parsed.subject_name}\n" if parsed.subject_name else ""
     ret += f"Response Type: {parsed.response_type}\n" if parsed.response_type else ""
     ret += f"Stimulus Type: {parsed.stimulus_type}\n" if parsed.stimulus_type else ""
@@ -111,7 +111,7 @@ if input("\nDownload all found sessions and their associated info JSON? (y/N) ")
         os.makedirs(folder, exist_ok=True, mode=0o700)
         with open(os.path.join(folder, "info.json"), 'w') as file:
             json.dump(reconstruct_info(session), file, indent=4, ensure_ascii=False)
-        
+
         file = redivis.file(session.FileID)
         try:
             file.download(os.path.join(folder, "data.csv"))

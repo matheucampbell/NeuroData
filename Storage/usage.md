@@ -1,5 +1,5 @@
-### Retrieval Script
-## Usage
+## Retrieval Script
+### Usage
 
 ```
 usage: upload_session.py [-h] -s SESSION_PATH -u USERNAME
