@@ -33,7 +33,7 @@ def reconstruct_info(row):
             out['HardwareParams'][key] = val
         elif key in SPARAMS:
             out['SessionParams'][key] = val
-        elif key[0] == ("_"):
+        elif key[0] == "_":
             continue
         else:
             out[key] = val
@@ -53,8 +53,8 @@ def multisort(arr, attrs):
         return parts
 
     if len(attrs) == 1:
-            arr.sort(key=operator.attrgetter(attrs[0]))
-            return arr
+        arr.sort(key=operator.attrgetter(attrs[0]))
+        return arr
     else:
         arr.sort(key=operator.attrgetter(attrs[0]))
         p = partition(arr, attrs[0])
