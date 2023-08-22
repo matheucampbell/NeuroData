@@ -67,15 +67,18 @@ class CollectionSession(Thread):
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
         super().__init__(name="CollectionThread")
         self.board = boardshim
-        self.sim = DataSim()  # Remove
         self.buffsize = buffsize
         self.sespath = sespath
         self.fname = "data.csv"
         self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
         self.start_event, self.stop_event = Event(), Event()
-        self.data = np.zeros((5, 1))
         self.error_message = ""
         self.lfpath = None
+
+        rows = brainflow.BoardShim.get_num_rows(self.board.board_id)
+        print(rows)
+        self.data = np.zeros((rows, 1))
+        self.sim = DataSim(rows)  # Remove
 
     def activate_logger(self, fpath):
         self.board.set_log_level(self.infolevel)

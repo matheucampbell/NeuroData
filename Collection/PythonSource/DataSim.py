@@ -5,8 +5,9 @@ from threading import Thread
 
 # Simulated data generator for GUI testing
 class DataSim:
-    def __init__(self):
-        self.buffer = np.zeros((5, 1))
+    def __init__(self, rows):
+        self.buffer = np.zeros((rows, 1))
+        self.rows = rows
         self.count = 1
         self.active = False
         self.logger = None
@@ -22,7 +23,7 @@ class DataSim:
     def generate_data(self):
         while self.active:
             sleep(.25)
-            new_col = np.ones((5, 1)) * self.count
+            new_col = np.ones((self.rows, 1)) * self.count
             if not self.buffer.any():
                 self.buffer = new_col
             else:
