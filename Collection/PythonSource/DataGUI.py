@@ -4,17 +4,17 @@ from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
 import numpy as np
 import os
-import pandas as pd
 import random
 
 from datetime import datetime
+from pandas import DataFrame
+from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
                              QLabel, QLineEdit, QTextEdit, QPlainTextEdit, 
                              QComboBox, QPushButton, QFileDialog,
                              QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy)
-from PyQt5.QtGui import QIntValidator
-from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
-from time import sleep, ctime
+from time import sleep
 from threading import Thread, Event
 from typing import Literal
 from DataSim import DataSim
@@ -143,7 +143,7 @@ class CollectionSession(Thread):
             return
 
     def save_data(self):
-        pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
+        DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
         self.log_message(self.infolevel, "[GUI]: Update saved.")
 
     def run(self):
