@@ -76,7 +76,6 @@ class CollectionSession(Thread):
         self.lfpath = None
 
         rows = brainflow.BoardShim.get_num_rows(self.board.board_id)
-        print(rows)
         self.data = np.zeros((rows, 1))
         self.sim = DataSim(rows)  # Remove
 
