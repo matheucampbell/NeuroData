@@ -100,7 +100,6 @@ if args.before_date or args.after_date:
     for row in rows:
         rdate = datetime.strptime(row.Date, "%Y-%m-%d")
         if not adate <= rdate <= bdate:
-            print(adate, rdate, bdate)
             to_remove.append(row)
     for r in to_remove:
         rows.remove(r)
