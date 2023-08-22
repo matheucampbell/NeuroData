@@ -91,8 +91,8 @@ rows = query.list_rows()
 
 if args.before_date or args.after_date:
     try:
-        bdate = datetime.strptime(args.before_date, "%m-%d-%Y") if args.before_date else datetime.now() - timedelta(days=3650)
-        adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date else datetime.now()
+        bdate = datetime.strptime(args.before_date, "%m-%d-%Y") if args.before_date else datetime.now()
+        adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date else datetime.now() - timedelta(days=3650)
     except ValueError:
         print("Error: Incorrect date format; should be MM-DD-YYYY")
 
@@ -100,6 +100,7 @@ if args.before_date or args.after_date:
     for row in rows:
         rdate = datetime.strptime(row.Date, "%Y-%m-%d")
         if not adate <= rdate <= bdate:
+            print(adate, rdate, bdate)
             to_remove.append(row)
     for r in to_remove:
         rows.remove(r)
