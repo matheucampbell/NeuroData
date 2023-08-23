@@ -40,6 +40,7 @@ datapackage/
     - stimulus type
     - headset configuration
     - headset model
+    - collection date
     - any combination of the above
 
 ## Database Structure
