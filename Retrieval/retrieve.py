@@ -1,6 +1,7 @@
 import argparse
 import operator
 import os
+import platform
 import redivis
 import simplejson as json
 import sys
@@ -69,6 +70,7 @@ def gen_exp(parsed):
     
     def fieldmatch(field, val):
         return f"{field.title().replace('_', '')} = \"{val}\""
+        # return f"LOWER({field.title().replace('_', '')}) = LOWER(\"{val}\")"
 
     query = f"""SELECT * from `{INFO_TABLE}` WHERE """
     query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"])
@@ -112,7 +114,14 @@ elif qstring:
 
 # Query for sessions
 qexp = gen_exp(args)
-query = redivis.query(qexp)
+try:
+    query = redivis.query(qexp)
+except OSError:
+    if platform.system() == "Linux" or platform.sytem() == "Darwin":
+        print("Error: Redivis API token not set. Run 'export REDIVIS_API_TOKEN=your_token' in terminal before retrieving data.")
+    elif platform.system() == 'Windows':
+        print("Error: Redivis API token not set. Run '$Env:REDIVIS_API_TOKEN = 'your_token' in PowerShell before retrieving data.")
+    sys.exit(1)
 
 rows = query.list_rows()
 
@@ -148,7 +157,7 @@ rows = multisort(rows, ["ProjectName", "SubjectName", "Date"])
 for session in rows:
     desc = session.Description if len(session.Description) <= 20 else session.Description[:17] + "..."
     print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + 
-          str(int(session.BlockLength)*int(session.BlockCount))+"s" + "\t\t" + 
+          str(round(int(session.BlockLength)*int(session.BlockCount), 2))+"s" + "\t\t" + 
           session.Date + "\t" + desc)
 
 if input("\nDownload all found sessions and their associated info JSON? (y/N) ") == "y":
