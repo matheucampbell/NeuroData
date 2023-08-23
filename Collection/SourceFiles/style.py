@@ -11,7 +11,7 @@ class Style:  # Style class for easier compilation
     QLabel {
         color: #c5cfde;
         font: Candara;
-        font-size: 17px;
+        font-size: 18px;
     }
     #FieldLabels { font-weight: bold }
     #ErrorLabel { color: #c20808 }
@@ -22,7 +22,7 @@ class Style:  # Style class for easier compilation
         border: none;
         padding: 8px 12px;
         border-radius: 5px;
-        font-size: 14px;
+        font-size: 18px;
     }
     QPushButton:hover {
         background-color: #0056b3;
@@ -39,19 +39,19 @@ class Style:  # Style class for easier compilation
         margin: 2px;
         border: 1px solid #ccc;
         border-radius: 5px;
-        font-size: 14px;
+        font-size: 18px;
     }
     QTextEdit {
         background-color: white;
         border: 1 px solid #ccc;
         border-radius: 5px;
-        font-size: 14px;
+        font-size: 16px;
         color: black;
         margin: 2px;
     }
     QPlainTextEdit{
         font-family: MonoSpace;
-        font-size: 12px;
+        font-size: 15px;
     }
     QComboBox {
         padding: 2px;
