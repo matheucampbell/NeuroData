@@ -43,5 +43,5 @@ Data collection is at best a long and boring process, so here's a guide to minim
 ## Uploading
 1. In a terminal, export the API key environment variable from your Redivis account. Generate one if necessary.
 2. Run upload_session.py from this repository. Follow the instructions to provide your session directory.
-3. You may need to be granted access to our dataset. Slack Matheu for access.
+3. You may need to be granted access to our dataset. Slack Matheu for access. If all else fails, email the .zip to mgc2171@columbia.edu.
 4. Your session should be uploaded!
