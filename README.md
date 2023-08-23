@@ -2,7 +2,7 @@
 ## Scripts for neural data collection, cloud storage, and retrieval
 This repo contains documentation and utility scripts for data collection, cloud storage, and retrieval.
 
-[Full Dataset Link](https://redivis.com/workspace/datasets/5e8n-ctqvm09q7)
+[Dataset Link](https://redivis.com/workspace/datasets/5e8n-ctqvm09q7)
 
 ### **Workflows**
 
