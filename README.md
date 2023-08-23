@@ -44,8 +44,8 @@ datapackage/
     - any combination of the above
 
 ## Database Structure
-### Session Table
+### Session Table (relational)
 Stores sessions in rows whose columns are object info fields, including one for FileID
 
-### Data Table
+### Data Table (non-relational)
 Stores all sessions as files with file IDs that correspond to a row in session table.
