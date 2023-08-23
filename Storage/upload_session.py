@@ -101,22 +101,22 @@ data_path = os.path.abspath(os.path.join(session_path, "data.csv"))
 
 if not os.path.isdir(session_path):
     print(f"Error: Session path '{session_path}' invalid.")
-    sys.exit()
+    sys.exit(1)
 
 if not os.path.exists(info_path):
     print(f"Error: Info file not found in session directory.")
-    sys.exit()
+    sys.exit(1)
 
 if not os.path.exists(data_path):
     print(f"Error: Data file not found in session directory.")
-    sys.exit()
+    sys.exit(1)
 
 with open(info_path) as fileinfo:
     info = json.loads(fileinfo.read())
 
 # Confirm info JSON contains the right fields.
 if not verify_json(info):
-    sys.exit()
+    sys.exit(1)
 
 # Upload file to data table
 fname = "data" + os.path.basename(session_path).split("_")[2] + ".csv"
@@ -125,7 +125,7 @@ try:
     file = session_upload(DATASET, DATA_TABLE, username, data_path, fname)
 except Exception as E:
     print(f"Error: {str(E)}")
-    sys.exit()
+    sys.exit(1)
 
 if isinstance(file, redivis.classes.File.File):
     print(f"Data file successfully uploaded to {DATA_TABLE}")
@@ -141,7 +141,7 @@ except Exception as E:
     print(f"Error: {str(E)}")
     if 'tmp' in os.listdir():
         os.remove('tmp')
-    sys.exit()
+    sys.exit(1)
 
 if isinstance(resp, redivis.classes.Upload.Upload):
     print(f"Info JSON successfully uploaded to {INFO_TABLE}.\n")

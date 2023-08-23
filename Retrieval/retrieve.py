@@ -1,6 +1,7 @@
 import argparse
 import operator
 import os
+import platform
 import redivis
 import simplejson as json
 import sys
@@ -71,7 +72,8 @@ def gen_exp(parsed):
         return f"LOWER({field.title().replace('_', '')}) = LOWER(\"{val}\")"
 
     query = f"""SELECT * from `{INFO_TABLE}` WHERE """
-    query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"])
+    query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date"
+                           and f != "before_date"])
     return query
 
 
@@ -106,22 +108,33 @@ args = parser.parse_args()
 qstring = query_criteria(args)
 if not qstring and input("No search criteria provided. Query for all available data? (y/N) ") != "y":
     print("Exiting")
-    sys.exit()
+    sys.exit(0)
 elif qstring:
     print("Searching for sessions by the following criteria: \n" + qstring)
 
 # Query for sessions
 qexp = gen_exp(args)
-query = redivis.query(qexp)
+try:
+    query = redivis.query(qexp)
+except OSError:
+    if platform.system() == "Linux" or platform.system() == "Darwin":
+        print("Error: Redivis API token not set. Run 'export REDIVIS_API_TOKEN=your_token' in terminal "
+              "before retrieving data.")
+    elif platform.system() == 'Windows':
+        print("Error: Redivis API token not set. Run '$Env:REDIVIS_API_TOKEN = 'your_token' in PowerShell "
+              "before retrieving data.")
+    sys.exit(1)
 
 rows = query.list_rows()
 
 if args.before_date or args.after_date:
     try:
         bdate = datetime.strptime(args.before_date, "%m-%d-%Y") if args.before_date else datetime.now()
-        adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date else datetime.now() - timedelta(days=3650)
+        adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date \
+            else datetime.now() - timedelta(days=3650)
     except ValueError:
         print("Error: Incorrect date format; should be MM-DD-YYYY")
+        sys.exit(1)
 
     to_remove = []
     for row in rows:
@@ -137,7 +150,7 @@ print(f"{count} session found." if count == 1 else
 
 if not count:
     print("Try again with different criteria.")
-    sys.exit()
+    sys.exit(0)
 
 print("Project\t\tSubject\t\t\tLength\t\tDate\t\tDescription")
 print("--------------------------------------------------------------------------------------------")
@@ -148,7 +161,7 @@ for session in rows:
     desc = session.Description.replace("\n", "") if len(session.Description) <= 20 else (
             session.Description[:17].replace("\n", "") + "...")
     print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + 
-          str(int(session.BlockLength)*int(session.BlockCount))+"s" + "\t\t" + 
+          str(round(int(session.BlockLength)*int(session.BlockCount), 2))+"s" + "\t\t" + 
           session.Date + "\t" + desc)
 
 if input("\nDownload all found sessions and their associated info JSON? (y/N) ") == "y":
@@ -173,6 +186,6 @@ if input("\nDownload all found sessions and their associated info JSON? (y/N) ")
         print(f"Created {folder}")
 else:
     print("Exiting.")
-    sys.exit()
+    sys.exit(0)
 
 print("Downloaded requested files.")
