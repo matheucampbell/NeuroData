@@ -1,0 +1,5 @@
+WINDOWS
+DataGUI_Boardless.exe - Data Collection GUI intended for use without board (only for GUI testing)
+DataGUI.exe - Full GUI for data collection. Connect board to serial port before use.
+
+MAC - Coming Soon
