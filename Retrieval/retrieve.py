@@ -21,7 +21,7 @@ def listify(annotations):
     dct = json.loads(annotations)
     out = []
     for key, val in dct.items():
-        out.append((key, val))
+        out.append((int(key), val))
     return out
 
 
