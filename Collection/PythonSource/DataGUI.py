@@ -310,7 +310,7 @@ class InfoWindow(PageWindow):
         self.fstimcycle.setPlaceholderText("Ex: 10101")
         self.fdescription = QTextEdit()
         self.fdescription.setPlaceholderText("Ex: SSVEP freq. 7/9/13 Hz GUI v1.2")
-        self.fdescription.setMaximumHeight(80)
+        self.fdescription.setMinimumHeight(115)
         self.sesframe = QFrame()
         self.sesframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.errdiv = QFrame()
