@@ -82,8 +82,10 @@ parser.add_argument('-r', '--response-type', help="EEG Response Type (SSVEP|ERP|
 parser.add_argument('-s', '--stimulus-type', help="Stimulus type (visual|audio|other)")
 parser.add_argument('-c', '--headset-configuration', help="Headset configuration (standard|occipital|other)")
 parser.add_argument('-m', '--headset-model', help="Headset model (CytonDaisy|Cyton)")
-parser.add_argument('-b', '--before-date', help="include data collected before this date (MM-DD-YYYY) (inclusive); defaults to now")
-parser.add_argument('-a', '--after-date', help="include data collected after this date (MM-DD-YYYY) (inclusive); defaults to 10 years ago")
+parser.add_argument('-b', '--before-date',
+                    help="include data collected before this date (MM-DD-YYYY) (inclusive); defaults to now")
+parser.add_argument('-a', '--after-date',
+                    help="include data collected after this date (MM-DD-YYYY) (inclusive); defaults to 10 years ago")
 
 args = parser.parse_args()
 qstring = query_criteria(args)
