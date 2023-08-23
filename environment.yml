@@ -1,0 +1,13 @@
+name: collection-env
+channels:
+  - defaults
+dependencies:
+  - pip>=20.0
+  - numpy=1.25.2
+  - simplejson=3.17.6
+  - pip:
+    - pyqt5 == 5.15.7
+    - brainflow == 5.9.0
+    - nuitka == 1.7.9
+    - pandas == 2.0.3
+    - redivis
