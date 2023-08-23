@@ -66,9 +66,9 @@ def multisort(arr, attrs):
 def gen_exp(parsed):
     if not [v for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"]:
         return f"""SELECT * from `{INFO_TABLE}`"""
-    
+
     def fieldmatch(field, val):
-        return f"{field.title().replace('_', '')} = \"{val}\""
+        return f"LOWER({field.title().replace('_', '')}) = LOWER(\"{val}\")"
 
     query = f"""SELECT * from `{INFO_TABLE}` WHERE """
     query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"])
@@ -145,7 +145,8 @@ print("-------------------------------------------------------------------------
 rows = multisort(rows, ["ProjectName", "SubjectName", "Date"])
 
 for session in rows:
-    desc = session.Description if len(session.Description) <= 20 else session.Description[:17] + "..."
+    desc = session.Description.replace("\n", "") if len(session.Description) <= 20 else (
+            session.Description[:17].replace("\n", "") + "...")
     print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + 
           str(int(session.BlockLength)*int(session.BlockCount))+"s" + "\t\t" + 
           session.Date + "\t" + desc)
