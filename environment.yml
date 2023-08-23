@@ -10,4 +10,4 @@ dependencies:
     - brainflow == 5.9.0
     - nuitka == 1.7.9
     - pandas == 2.0.3
-    - redivis
+    - redivis == 0.11.1
