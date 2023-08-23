@@ -4,7 +4,6 @@ from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
 import numpy as np
 import os
-import random
 
 from datetime import datetime
 from pandas import DataFrame
@@ -17,7 +16,6 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
 from time import sleep
 from threading import Thread, Event
 from typing import Literal
-from DataSim import DataSim
 from style import Style
 
 # Multi-page structure adapted from 
