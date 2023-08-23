@@ -42,27 +42,8 @@ def reconstruct_info(row):
 
 
 def multisort(arr, attrs):
-    def partition(ls, attr):
-        parts = []
-        first = last = 0
-        while last < len(ls):
-            val = getattr(ls[first], attr)
-            while last < len(ls) and getattr(ls[last], attr) == val:
-                last += 1
-            parts.append(ls[first:last])
-            first = last
-        return parts
+    arr.sort(key=lambda x: tuple(getattr(x, attr) for attr in attrs))
 
-    if len(attrs) == 1:
-        arr.sort(key=operator.attrgetter(attrs[0]))
-        return arr
-    else:
-        arr.sort(key=operator.attrgetter(attrs[0]))
-        p = partition(arr, attrs[0])
-        n = [multisort(l, attrs[1:]) for l in p]
-
-        return [i for j in n for i in j]
-        
 
 def gen_exp(parsed):
     if not [v for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"]:
@@ -155,7 +136,7 @@ if not count:
 print("Project\t\tSubject\t\t\tLength\t\tDate\t\tDescription")
 print("--------------------------------------------------------------------------------------------")
 
-rows = multisort(rows, ["ProjectName", "SubjectName", "Date"])
+multisort(rows, ["ProjectName", "SubjectName", "Date", "Description"])
 
 for session in rows:
     desc = session.Description.replace("\n", "") if len(session.Description) <= 20 else (
