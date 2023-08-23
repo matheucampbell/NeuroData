@@ -19,30 +19,29 @@ This repo contains documentation and utility scripts for data collection, cloud 
 
 ### Data retrieval:
 1. Decide which parameters are relevant.
-1. Use retrieval script (retrieve.py) to query Columbia Data Platform (Redivis) for sessions with your desired criteria. Data will be downloaded into a datapackage folder with the following structure.
+2. Use retrieval script (retrieve.py) to query Columbia Data Platform (Redivis) for sessions with your desired criteria. Data will be downloaded into a datapackage folder with the following structure.
 
 ```
 datapackage/
     ├─ query.txt
     ├─ session_08_11_10_62625/
-    │  ├─ data_14_36.csv
+    │  ├─ data.csv
     │  └─ info.json
     └─ session_09_10_11_10592/
-       ├─ data_13_25.csv
+       ├─ data.csv
        └─ info.json
 ```
 
-### Database Features
-1. Data retrieval by
-    - project name
-    - subject name
-    - response type
-    - stimulus type
-    - headset configuration
-    - headset model
-    - collection date
-    - any combination of the above
-
+### Supported Query Parameters:
+- project name
+- subject name
+- response type
+- stimulus type
+- headset configuration
+- headset model
+- collection date
+- any combination of the above
+    
 ## Database Structure
 ### Session Table (relational)
 Stores sessions in rows whose columns are object info fields, including one for FileID
