@@ -6,13 +6,12 @@ Data collection is at best a long and boring process, so here's a guide to minim
 2. Before running a data collection session, decide on a time and location. Plan when and where to get the headset and who to get it from. Let people know where it'll go afterwards.
 3. Design your data collection session. Think about the reaction you want to measure and how you will induce it. Also think about how you will record it.
 
-Design Considerations
-    - If using a script to generate stimulus, have you tested it on the laptop that'll run it for the session? Have you set up the proper environment?
-    - Are there hardware considerations to make (monitor refresh rate, monitor size, brightness, etc.)?
-    - How are you recording the data? Using DataGUI.py or one of its binaries is strongly recommended. Have you tested with DataGUI_Boardless? If using another script, make sure to test it and conform
-    to the info.json conventions.
-    - If using OpenBCI's GUI for data collection, make sure to create a session folder in the expected format and an info JSON that describes the session.
-    - Who's administering the session and who is undergoing data collection? Does the subject know the purpose and understand the session design?
+### Design Considerations
+- If using a script to generate stimulus, have you tested it on the laptop that'll run it for the session? Have you set up the proper environment?
+- Are there hardware considerations to make (monitor refresh rate, monitor size, brightness, etc.)?
+- How are you recording the data? Using DataGUI.py or one of its binaries is strongly recommended. Have you tested with DataGUI_Boardless? If using another script, make sure to test it and conform to the info.json conventions.
+- If using OpenBCI's GUI for data collection, make sure to create a session folder in the expected format and an info JSON that describes the session.
+- Who's administering the session and who is undergoing data collection? Does the subject know the purpose and understand the session design?
 
 ## Collection Steps
 ### Setup
@@ -44,4 +43,5 @@ Design Considerations
 ## Uploading
 1. In a terminal, export the API key environment variable from your Redivis account. Generate one if necessary.
 2. Run upload_session.py from this repository. Follow the instructions to provide your session directory.
-3. Your session should be uploaded!
+3. You may need to be granted access to our dataset. Slack Matheu for access.
+4. Your session should be uploaded!
