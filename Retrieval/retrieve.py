@@ -106,7 +106,7 @@ args = parser.parse_args()
 qstring = query_criteria(args)
 if not qstring and input("No search criteria provided. Query for all available data? (y/N) ") != "y":
     print("Exiting")
-    sys.exit()
+    sys.exit(0)
 elif qstring:
     print("Searching for sessions by the following criteria: \n" + qstring)
 
@@ -122,6 +122,7 @@ if args.before_date or args.after_date:
         adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date else datetime.now() - timedelta(days=3650)
     except ValueError:
         print("Error: Incorrect date format; should be MM-DD-YYYY")
+        sys.exit(-1)
 
     to_remove = []
     for row in rows:
@@ -137,7 +138,7 @@ print(f"{count} session found." if count == 1 else
 
 if not count:
     print("Try again with different criteria.")
-    sys.exit()
+    sys.exit(0)
 
 print("Project\t\tSubject\t\t\tLength\t\tDate\t\tDescription")
 print("--------------------------------------------------------------------------------------------")
@@ -172,6 +173,6 @@ if input("\nDownload all found sessions and their associated info JSON? (y/N) ")
         print(f"Created {folder}")
 else:
     print("Exiting.")
-    sys.exit()
+    sys.exit(0)
 
 print("Downloaded requested files.")
