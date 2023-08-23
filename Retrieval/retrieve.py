@@ -1,5 +1,4 @@
 import argparse
-import operator
 import os
 import platform
 import redivis
