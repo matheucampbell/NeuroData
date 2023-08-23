@@ -4,17 +4,17 @@ from brainflow.board_shim import BoardShim, BrainFlowInputParams
 import json
 import numpy as np
 import os
-import pandas as pd
 import random
 
 from datetime import datetime
+from pandas import DataFrame
+from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QFrame,
                              QLabel, QLineEdit, QTextEdit, QPlainTextEdit, 
                              QComboBox, QPushButton, QFileDialog,
                              QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy)
-from PyQt5.QtGui import QIntValidator
-from PyQt5.QtCore import Qt, QFileSystemWatcher, QTimer, QTime, pyqtSignal, pyqtSlot
-from time import sleep, ctime
+from time import sleep
 from threading import Thread, Event
 from typing import Literal
 from DataSim import DataSim
@@ -67,15 +67,16 @@ class CollectionSession(Thread):
     def __init__(self, boardshim: brainflow.BoardShim, sespath, buffsize):
         super().__init__(name="CollectionThread")
         self.board = boardshim
-        self.sim = DataSim()  # Remove
         self.buffsize = buffsize
         self.sespath = sespath
         self.fname = "data.csv"
         self.ready_flag, self.ongoing, self.error_flag = Event(), Event(), Event()
         self.start_event, self.stop_event = Event(), Event()
-        self.data = np.zeros((5, 1))
         self.error_message = ""
         self.lfpath = None
+
+        rows = brainflow.BoardShim.get_num_rows(self.board.board_id)
+        self.data = np.zeros((rows, 1))
 
     def activate_logger(self, fpath):
         self.board.set_log_level(self.infolevel)
@@ -91,13 +92,12 @@ class CollectionSession(Thread):
             return
         self.log_message(self.infolevel, "[GUI]: Preparing board...")
         try:
-            # proc = ExceptableThread(target=self.board.prepare_session, daemon=True, name="PrepThread")  # uncomment
-            proc = ExceptableThread(target=sleep, args=(5,), daemon=True, name="PrepThread")  # remove
+            proc = ExceptableThread(target=self.board.prepare_session, daemon=True, name="PrepThread")
             proc.start()
             while proc.is_alive():
                 if self.stop_event.is_set() or self.error_flag.is_set():
                     raise CollectionSession.PrepInterruptedException("Board preparation interrupted.")
-            if self.board.is_prepared() or True:  # Remove second part
+            if self.board.is_prepared():
                 self.ready_flag.set()
                 self.log_message(self.infolevel, "[GUI]: Board preparation successful.")
             else:
@@ -118,21 +118,14 @@ class CollectionSession(Thread):
         self.log_message(self.infolevel, "[GUI]: Stream started.")
         if not self.ready_flag.is_set():
             return
-        # self.board.start_stream()  # Uncomment
-        self.sim.start_stream()  # Remove
+        self.board.start_stream()
 
     def update_data(self):
         try:
-            if random.randint(1, 2) == 3:  # Remove block
-                self.error_message = "RandomError: Encountered random error."
-                self.log_message(self.infolevel, self.error_message)
-                self.error_flag.set()
             if not self.data.any():
-                # self.data = self.board.get_board_data()  # Uncomment
-                self.data = self.sim.get_data()  # Remove
+                self.data = self.board.get_board_data()
             else:
-                # self.data = np.hstack((self.data, self.board.get_board_data()))  # Uncomment
-                self.data = np.hstack((self.data, self.sim.get_data()))  # Remove
+                self.data = np.hstack((self.data, self.board.get_board_data()))
             self.save_data()
         except brainflow.BrainFlowError as E:
             self.error_message = f"Error: {E}"
@@ -141,7 +134,7 @@ class CollectionSession(Thread):
             return
 
     def save_data(self):
-        pd.DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
+        DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
         self.log_message(self.infolevel, "[GUI]: Update saved.")
 
     def run(self):
@@ -150,7 +143,7 @@ class CollectionSession(Thread):
         while not self.start_event.is_set() and not self.error_flag.is_set():  # In ready state
             sleep(0.1)
         if self.error_flag.is_set():  # Probably window closed before starting stream
-            # self.board.release_session()  # Uncomment
+            self.board.release_session()
             return
 
         self.start_stream()
@@ -168,17 +161,15 @@ class CollectionSession(Thread):
             self.pause_session()  # Change to pause_session
 
     def pause_session(self):
-        # self.board.stop_stream()  # Uncomment
-        self.sim.stop_stream()  # Remove
+        self.board.stop_stream()
         self.ready_flag.clear()
         self.ongoing.clear()
         self.log_message(self.infolevel, "[GUI]: Stream stopped.")
 
     def end_session(self):
         self.save_data()
-        # self.board.stop_stream()  # Uncomment
-        # self.board.release_session()  # Uncomment
-        self.sim.stop_stream()  # Remove
+        self.board.stop_stream()
+        self.board.release_session()
         self.ready_flag.clear()
         self.ongoing.clear()
         self.log_message(self.infolevel, "[GUI]: Session ended.")
@@ -308,7 +299,7 @@ class InfoWindow(PageWindow):
         self.fstimcycle.setPlaceholderText("Ex: 10101")
         self.fdescription = QTextEdit()
         self.fdescription.setPlaceholderText("Ex: SSVEP freq. 7/9/13 Hz GUI v1.2")
-        self.fdescription.setMaximumHeight(80)
+        self.fdescription.setMinimumHeight(115)
         self.sesframe = QFrame()
         self.sesframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.errdiv = QFrame()

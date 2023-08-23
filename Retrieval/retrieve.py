@@ -1,10 +1,12 @@
 import argparse
+import operator
+import os
+import platform
 import redivis
 import simplejson as json
-import os
 import sys
 
-from collections import namedtuple
+from datetime import datetime, timedelta
 
 DATASET = "neurotechxcolumbia dataset"
 INFO_TABLE = f"matheu_campbell.neurotechxcolumbia_dataset.info_table:rx53"
@@ -32,19 +34,46 @@ def reconstruct_info(row):
             out['HardwareParams'][key] = val
         elif key in SPARAMS:
             out['SessionParams'][key] = val
-        elif key[0] == ("_"):
+        elif key[0] == "_":
             continue
         else:
             out[key] = val
     return out
 
 
-def gen_exp(parsed):
-    def fieldmatch(field, val):
-        return f"{field.title().replace('_', '')} = \"{val}\""
+def multisort(arr, attrs):
+    def partition(ls, attr):
+        parts = []
+        first = last = 0
+        while last < len(ls):
+            val = getattr(ls[first], attr)
+            while last < len(ls) and getattr(ls[last], attr) == val:
+                last += 1
+            parts.append(ls[first:last])
+            first = last
+        return parts
 
-    query = f"""SELECT * from `{INFO_TABLE}`\nWHERE """
-    query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v])
+    if len(attrs) == 1:
+        arr.sort(key=operator.attrgetter(attrs[0]))
+        return arr
+    else:
+        arr.sort(key=operator.attrgetter(attrs[0]))
+        p = partition(arr, attrs[0])
+        n = [multisort(l, attrs[1:]) for l in p]
+
+        return [i for j in n for i in j]
+        
+
+def gen_exp(parsed):
+    if not [v for f, v in vars(parsed).items() if v and f != "after_date" and f != "before_date"]:
+        return f"""SELECT * from `{INFO_TABLE}`"""
+
+    def fieldmatch(field, val):
+        return f"LOWER({field.title().replace('_', '')}) = LOWER(\"{val}\")"
+
+    query = f"""SELECT * from `{INFO_TABLE}` WHERE """
+    query += " AND ".join([fieldmatch(f, v) for f, v in vars(parsed).items() if v and f != "after_date"
+                           and f != "before_date"])
     return query
 
 
@@ -55,6 +84,8 @@ def query_criteria(parsed):
     ret += f"Stimulus Type: {parsed.stimulus_type}\n" if parsed.stimulus_type else ""
     ret += f"Headset Configuration: {parsed.headset_configuration}\n" if parsed.headset_configuration else ""
     ret += f"Headset Model: {parsed.headset_model}\n" if parsed.headset_model else ""
+    ret += f"Collected before: {parsed.before_date}\n" if parsed.before_date else ""
+    ret += f"Collected after: {parsed.after_date}\n" if parsed.after_date else ""
     return ret
 
 
@@ -64,39 +95,78 @@ parser = argparse.ArgumentParser(
                 ' of results.',
     formatter_class=argparse.RawTextHelpFormatter)
 
-parser.add_argument('-p', '--project-name', help="Project name", required=True)
+parser.add_argument('-p', '--project-name', help="Project name")
 parser.add_argument('-n', '--subject-name', help="The name of a particular data collection subject")
 parser.add_argument('-r', '--response-type', help="EEG Response Type (SSVEP|ERP|other)")
 parser.add_argument('-s', '--stimulus-type', help="Stimulus type (visual|audio|other)")
 parser.add_argument('-c', '--headset-configuration', help="Headset configuration (standard|occipital|other)")
 parser.add_argument('-m', '--headset-model', help="Headset model (CytonDaisy|Cyton)")
-
-# TODO Add support for a specific date, a date range, or date max/min
+parser.add_argument('-b', '--before-date', help="include data collected before this date (MM-DD-YYYY) (inclusive); defaults to now")
+parser.add_argument('-a', '--after-date', help="include data collected after this date (MM-DD-YYYY) (inclusive); defaults to 10 years ago")
 
 args = parser.parse_args()
 qstring = query_criteria(args)
-print("Searching for sessions by the following criteria: \n" + qstring)
+if not qstring and input("No search criteria provided. Query for all available data? (y/N) ") != "y":
+    print("Exiting")
+    sys.exit(0)
+elif qstring:
+    print("Searching for sessions by the following criteria: \n" + qstring)
 
 # Query for sessions
 qexp = gen_exp(args)
-query = redivis.query(qexp)
+try:
+    query = redivis.query(qexp)
+except OSError:
+    if platform.system() == "Linux" or platform.system() == "Darwin":
+        print("Error: Redivis API token not set. Run 'export REDIVIS_API_TOKEN=your_token' in terminal "
+              "before retrieving data.")
+    elif platform.system() == 'Windows':
+        print("Error: Redivis API token not set. Run '$Env:REDIVIS_API_TOKEN = 'your_token' in PowerShell "
+              "before retrieving data.")
+    sys.exit(1)
 
 rows = query.list_rows()
+
+if args.before_date or args.after_date:
+    try:
+        bdate = datetime.strptime(args.before_date, "%m-%d-%Y") if args.before_date else datetime.now()
+        adate = datetime.strptime(args.after_date, "%m-%d-%Y") if args.after_date \
+            else datetime.now() - timedelta(days=3650)
+    except ValueError:
+        print("Error: Incorrect date format; should be MM-DD-YYYY")
+        sys.exit(1)
+
+    to_remove = []
+    for row in rows:
+        rdate = datetime.strptime(row.Date, "%Y-%m-%d")
+        if not adate <= rdate <= bdate:
+            to_remove.append(row)
+    for r in to_remove:
+        rows.remove(r)
+
 count = len(rows)
 print(f"{count} session found." if count == 1 else
       f"{count} sessions found.\n")
 
 if not count:
-    sys.exit()
+    print("Try again with different criteria.")
+    sys.exit(0)
 
-print("Project\t\tSubject\t\t\tDate")
-print("--------------------------------------------------")
+print("Project\t\tSubject\t\t\tLength\t\tDate\t\tDescription")
+print("--------------------------------------------------------------------------------------------")
+
+rows = multisort(rows, ["ProjectName", "SubjectName", "Date"])
+
 for session in rows:
-    print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + session.Date)
+    desc = session.Description.replace("\n", "") if len(session.Description) <= 20 else (
+            session.Description[:17].replace("\n", "") + "...")
+    print(session.ProjectName + "\t\t" + session.SubjectName + "\t\t" + 
+          str(round(int(session.BlockLength)*int(session.BlockCount), 2))+"s" + "\t\t" + 
+          session.Date + "\t" + desc)
 
-outpath = os.path.abspath("datapackage")
-os.makedirs(outpath, exist_ok=True)
 if input("\nDownload all found sessions and their associated info JSON? (y/N) ") == "y":
+    outpath = os.path.abspath("datapackage")
+    os.makedirs(outpath, exist_ok=True)
     with open(os.path.join(outpath, "query.txt"), 'w+') as file:
         file.write("Query Criteria\n")
         file.write(qstring)
@@ -116,6 +186,6 @@ if input("\nDownload all found sessions and their associated info JSON? (y/N) ")
         print(f"Created {folder}")
 else:
     print("Exiting.")
-    sys.exit()
+    sys.exit(0)
 
 print("Downloaded requested files.")

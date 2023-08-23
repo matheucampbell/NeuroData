@@ -1,4 +1,4 @@
-class Style:  # This is some questionable stuff
+class Style:  # Style class for easier compilation
     style = """
     QFrame {
         color: white;
