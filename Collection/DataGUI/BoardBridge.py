@@ -78,11 +78,11 @@ class CollectionSession(Thread):
                 raise proc.exc if proc.exc else Exception("Unknown error. Check logs.")
         except BrainFlowError as E:
             self.error_message = f"Error: {str(E)}"
-            self.log_message(LogLevels.LEVEL_INFO, f"{str(E)}")
+            self.log_message(LogLevels.LEVEL_ERROR, f"[GUI]: {str(E)}")
             self.error_flag.set()
         except CollectionSession.PrepInterruptedException as E:
             self.error_message = f"Error: {str(E)}"
-            self.log_message(LogLevels.LEVEL_INFO, f"[GUI]: {str(E)}")
+            self.log_message(LogLevels.LEVEL_ERROR, f"[GUI]: {str(E)}")
             self.error_flag.set()
         except Exception as E:
             self.error_message = f"Error: {str(E)}"
