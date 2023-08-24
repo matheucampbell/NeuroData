@@ -2,8 +2,6 @@
 from brainflow import LogLevels, BrainFlowError
 from brainflow.board_shim import BoardShim
 from pandas import DataFrame
-from PyQt5.QtCore import QFileSystemWatcher
-from PyQt5.QtWidgets import QPlainTextEdit
 from threading import Thread, Event
 from time import sleep
 
