@@ -309,6 +309,8 @@ class InfoWindow(PageWindow):
             return False, "Invalid characters in stim cycle."
         if len(stimcycle) != bc:
             return False, "Stim cycle does not match block count."
+        if not self.fdescription.toPlainText().strip(" "):
+            return False, "No session description supplied."
         if not self.fbuffsize.text().strip():
             return False, "No buffer size supplied."
         if int(self.fbuffsize.text()) > self.buffsize_max:
