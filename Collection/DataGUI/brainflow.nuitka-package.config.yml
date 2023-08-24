@@ -8,4 +8,11 @@
           - 'BoardController*'
         suffixes:
           - 'dll'
-      when: 'standalone'
+        when: 'standalone and win32'
+    - from_filenames:
+        relative_path: 'lib'
+        prefixes:
+          - 'libBoardController*'
+        suffixes:
+          - 'dylib'
+        when: 'standalone and macos'
