@@ -57,6 +57,7 @@ class Style:  # Style class for easier compilation
         padding: 2px;
         color: white;
         background-color: #43484d;
+        font-size: 16px;
     }
     QComboBox QAbstractItemView{
         color: white;
