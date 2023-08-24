@@ -1,4 +1,6 @@
-from PyQt5.QtWidgets import QFrame
+"""Widget-derived custom classes and style sheet"""
+from PyQt5.QtCore import QFileSystemWatcher
+from PyQt5.QtWidgets import QFrame, QPlainTextEdit
 
 class StateIndicator(QFrame):
     """Visual indicator for active and inactive states"""
@@ -23,6 +25,37 @@ class StateIndicator(QFrame):
 
     def is_active(self):
         return self.on
+
+
+class QTextEditLogger(QPlainTextEdit):
+    """Monitors logfile for updates and prints to GUI"""
+    def __init__(self, filepath, parent_layout=None):
+        super().__init__()
+        self.logfile = open(filepath, buffering=1)
+        self.readpos = 0
+
+        self.watcher = QFileSystemWatcher()
+        self.watcher.addPath(filepath)
+        self.watcher.fileChanged.connect(self.update_log_window)
+
+        self.setReadOnly(True)
+        self.setBackgroundVisible(True)
+        if parent_layout:
+            self.mount(parent_layout)
+
+    def mount(self, layout):
+        layout.addWidget(self)
+
+    def update_log_window(self):
+        self.logfile.seek(self.readpos)
+        line = self.logfile.read()
+        self.appendPlainText(line)
+        self.readpos = self.logfile.tell()
+
+    def __exit__(self, type, val, traceback):
+        self.logfile.close()
+        print(traceback)
+
 
 class Style:
     style = """

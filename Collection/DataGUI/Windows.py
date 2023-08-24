@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (QFrame, QLabel, QLineEdit, QTextEdit, QComboBox, QP
                              QVBoxLayout, QHBoxLayout, QGridLayout)
 from threading import Thread
 from time import sleep
-from Style import StateIndicator
+from Style import StateIndicator, QTextEditLogger
 
 import json
 import os
@@ -503,7 +503,7 @@ class CollectionWindow(PageWindow):
         """Pass logfile to BoardShim and set up for GUI log window"""
         lfile = os.path.join(os.path.normpath(self.infopath + os.sep + os.pardir), "sessionlog.log")
         self.csession.activate_logger(lfile)
-        return BoardBridge.QTextEditLogger(lfile)
+        return QTextEditLogger(lfile)
 
     def wait_for_ready(self):
         """Show preparation status"""
