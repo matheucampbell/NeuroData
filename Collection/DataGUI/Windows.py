@@ -57,6 +57,7 @@ class PageWindow(QFrame):
 class ModeWindow(PageWindow):
     """Choose between test and regular mode."""
     modesig = pyqtSignal(bool)
+
     def __init__(self):
         super().__init__()
         self.setObjectName("ModeFrame")

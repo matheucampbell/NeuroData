@@ -2,6 +2,7 @@
 from PyQt5.QtCore import QFileSystemWatcher
 from PyQt5.QtWidgets import QFrame, QPlainTextEdit
 
+
 class StateIndicator(QFrame):
     """Visual indicator for active and inactive states"""
     def __init__(self, active_color, inactive_color, dia=20):
@@ -76,8 +77,6 @@ class Style:
     }
     #FieldLabels { font-weight: bold; }
     #ErrorLabel { color: #c20808 }
-    #LogLabel { padding: 0px;
-                font-weight: bold; }
     #Divider { background-color: #6c6f70; }
     QPushButton {
         background-color: #007bff;
@@ -108,6 +107,7 @@ class Style:
         background-color: white;
         border: 1 px solid #ccc;
         border-radius: 5px;
+        padding: 2px;
         font-size: 16px;
         color: black;
         margin: 2px;
