@@ -1,12 +1,12 @@
 """Classes that integrate Brainflow functionality into the GUI"""
 from brainflow import LogLevels, BrainFlowError
 from brainflow.board_shim import BoardShim
-from pandas import DataFrame
 from threading import Thread, Event
 from time import sleep
 
 import numpy as np
 import os
+
 
 class ExceptableThread(Thread):
     def run(self):
@@ -106,7 +106,7 @@ class CollectionSession(Thread):
             return
 
     def save_data(self):
-        DataFrame(np.copy(self.data)).to_csv(os.path.join(self.sespath, self.fname))
+        np.savetxt(os.path.join(self.sespath, self.fname), np.copy(self.data))
         self.log_message(LogLevels.LEVEL_INFO, "[GUI]: Update saved.")
 
     def run(self):
