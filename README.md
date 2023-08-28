@@ -48,3 +48,18 @@ Stores sessions in rows whose columns are object info fields, including one for 
 
 ### Data Table (non-relational)
 Stores all sessions as files with file IDs that correspond to a row in session table.
+
+## Environment Setup and Package Management
+### Conda (recommended)
+- On Windows, open an Anaconda Prompt or an Anaconda Powershell from the start menu and navigate to where this repo is cloned.
+- On Mac/Linux, open a terminal and navitage to where this repo is cloned.
+- Create a new environment with `conda create env -f environment.yml`
+- If environment setup or package installation fails, try
+  - updating conda
+  - updating pip
+  - installing packages without specific version numbers
+- Activate environment with `conda activate collection-env`
+
+### Other
+If choosing to use a non-conda virtual environment or installing to global Python site packages, reference environment.yml when
+manually installing requirements.
