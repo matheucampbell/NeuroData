@@ -1,5 +1,9 @@
 """Widget-derived custom classes and style sheet"""
-from PyQt5.QtCore import QFileSystemWatcher
+import math
+
+from numpy import linspace
+from PyQt5.QtCore import Qt, QFileSystemWatcher
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import QFrame, QPlainTextEdit, QGridLayout, QLabel, QLineEdit
 
 
@@ -31,19 +35,28 @@ class StateIndicator(QFrame):
 class GridStimMenu(QGridLayout):
     def __init__(self):
         super().__init__()
+        self.stimname = "GridFlash"
         self.active = True
+        self.setSpacing(5)
+        self.setColumnStretch(0, 2)
         self.minfield = QLineEdit()
+        self.minfield.setValidator(QIntValidator(1, 10000))
         self.maxfield = QLineEdit()
+        self.maxfield.setValidator(QIntValidator(1, 10000))
         self.stepfield = QLineEdit()
-        self.minlabel = QLabel("Freq. Minimum:")
-        self.maxlabel = QLabel("Freq. Maximum:")
-        self.steplabel = QLabel("Steps:")
+        self.maxfield.setValidator(QIntValidator(1, 50))
+        self.minlabel = QLabel("Freq. Minimum (Hz):")
+        self.maxlabel = QLabel("Freq. Maximum (Hz):")
+        self.steplabel = QLabel("Step count:")
+        self.minlabel.setObjectName("MenuLabel")
+        self.maxlabel.setObjectName("MenuLabel")
+        self.steplabel.setObjectName("MenuLabel")
 
-        self.addWidget(self.minlabel, 6, 0)
+        self.addWidget(self.minlabel, 6, 0, Qt.AlignRight)
+        self.addWidget(self.maxlabel, 7, 0, Qt.AlignRight)
+        self.addWidget(self.steplabel, 8, 0, Qt.AlignRight)
         self.addWidget(self.minfield, 6, 1)
-        self.addWidget(self.maxlabel, 7, 0)
         self.addWidget(self.maxfield, 7, 1)
-        self.addWidget(self.steplabel, 8, 0)
         self.addWidget(self.stepfield, 8, 1)
     
     def clear(self):
@@ -55,6 +68,23 @@ class GridStimMenu(QGridLayout):
         self.maxlabel.clear()
         self.steplabel.clear()
         self.setParent(None)
+
+    def validate(self):
+        if not self.minfield.text().strip():
+            return False, "Minimum freq. missing."
+        if not self.maxfield.text().strip():
+            return False, "Maximum freq. missing."
+        if not self.stepfield.text().strip():
+            return False, "Step count missing."
+        if not int(self.minfield.text()) <= int(self.minfield.text()):
+            return False, "Minimum freq. cannot be greater than maximum freq."
+        return True, ""
+
+    def get_args(self):
+        """Return usable args for running the stim script"""
+        rows = cols = math.ceil(math.sqrt(int(self.stepfield.text())))
+        min, max, steps = int(self.minfield.text()), int(self.maxfield.text()), int(self.stepfield.text())
+        return (linspace(min, max, steps), rows, cols)
 
 
 class QTextEditLogger(QPlainTextEdit):
@@ -106,6 +136,7 @@ class Style:
     }
     #FieldLabels { font-weight: bold; }
     #ErrorLabel { color: #c20808 }
+    #MenuLabel { font-size: 14px; }
     #Divider { background-color: #6c6f70; }
     QPushButton {
         background-color: #007bff;

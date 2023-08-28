@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QFrame, QLabel, QLineEdit, QTextEdit, QComboBox, QP
 from threading import Thread
 from time import sleep
 from Style import StateIndicator, QTextEditLogger, GridStimMenu
-from Stimuli import SSVEPStimulus
+from Stimuli import GridFlash
 
 import json
 import os
@@ -85,6 +85,7 @@ class InfoWindow(PageWindow):
     """Accepts and validates input for info.json"""
     boardmap = {'Cyton': (0, 250),
                 'CytonDaisy': (2, 125)}
+    stimmap = {'GridFlash': GridFlash}
     buffsize_d = 100000
     buffsize_max = 450000
     buffsize_min = 1000
@@ -103,6 +104,7 @@ class InfoWindow(PageWindow):
         self.infodict['Date'] = self.date
         self.infodict['Time'] = self.time
         self.board = None
+        self.stimscript = False
 
         # Directory Row
         self.dirlabel = QLabel("Session directory: ")
@@ -213,7 +215,8 @@ class InfoWindow(PageWindow):
         # Hardware Parameters
         rightlayout = QVBoxLayout()
         hardlayout = QGridLayout(self.hardframe)
-        hardlayout.setRowStretch(6, 2)
+        hardlayout.setRowStretch(6, 5)
+        hardlayout.setRowStretch(7, 1)
         hardlayout.setRowMinimumHeight(6, 2)
         hardlayout.addWidget(self.config, 1, 0)
         hardlayout.addWidget(self.fconfig, 1, 1)
@@ -279,7 +282,7 @@ class InfoWindow(PageWindow):
             session = BoardlessBridge.CollectionSession(self.board, self.sespath, int(self.fbuffsize.text()))
         else:
             session = BoardBridge.CollectionSession(self.board, self.sespath, int(self.fbuffsize.text()))
-        self.colwin.init_session(os.path.join(self.sespath, "info.json"), session, new)
+        self.colwin.init_session(os.path.join(self.sespath, "info.json"), session, new, stim=self.stimscript)
         self.goto("collect")
 
     def check_info(self):
@@ -329,6 +332,14 @@ class InfoWindow(PageWindow):
             return False, f"Buffer size too low. (Min: {self.buffsize_min})"
         if not self.fserialport.text().strip():
             return False, "No serial port supplied."
+        
+        menu = self.hardlayout.itemAtPosition(6, 0)
+        if menu and not (res := menu.validate())[0]:
+            return res
+        elif not menu:
+            self.stimscript = None
+        else:
+            self.stimscript = InfoWindow.stimmap[menu.stimname](*menu.get_args())
 
         return True, ""
 
