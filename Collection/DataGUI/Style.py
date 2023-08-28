@@ -1,6 +1,6 @@
 """Widget-derived custom classes and style sheet"""
 from PyQt5.QtCore import QFileSystemWatcher
-from PyQt5.QtWidgets import QFrame, QPlainTextEdit
+from PyQt5.QtWidgets import QFrame, QPlainTextEdit, QGridLayout, QLabel, QLineEdit
 
 
 class StateIndicator(QFrame):
@@ -26,6 +26,35 @@ class StateIndicator(QFrame):
 
     def is_active(self):
         return self.on
+
+
+class GridStimMenu(QGridLayout):
+    def __init__(self):
+        super().__init__()
+        self.active = True
+        self.minfield = QLineEdit()
+        self.maxfield = QLineEdit()
+        self.stepfield = QLineEdit()
+        self.minlabel = QLabel("Freq. Minimum:")
+        self.maxlabel = QLabel("Freq. Maximum:")
+        self.steplabel = QLabel("Steps:")
+
+        self.addWidget(self.minlabel, 6, 0)
+        self.addWidget(self.minfield, 6, 1)
+        self.addWidget(self.maxlabel, 7, 0)
+        self.addWidget(self.maxfield, 7, 1)
+        self.addWidget(self.steplabel, 8, 0)
+        self.addWidget(self.stepfield, 8, 1)
+    
+    def clear(self):
+        self.active = False
+        self.minfield.setParent(None)
+        self.maxfield.setParent(None)
+        self.stepfield.setParent(None)
+        self.minlabel.clear()
+        self.maxlabel.clear()
+        self.steplabel.clear()
+        self.setParent(None)
 
 
 class QTextEditLogger(QPlainTextEdit):

@@ -4,14 +4,14 @@ import BoardlessBridge
 from brainflow import BrainFlowInputParams, BrainFlowError, LogLevels
 from brainflow.board_shim import BoardShim
 from datetime import datetime
-from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import (QFrame, QLabel, QLineEdit, QTextEdit, QComboBox, QPushButton, QFileDialog, 
                              QVBoxLayout, QHBoxLayout, QGridLayout)
 from threading import Thread
 from time import sleep
-from Style import StateIndicator, QTextEditLogger
-from StockStim.Test import TestStim
+from Style import StateIndicator, QTextEditLogger, GridStimMenu
+from Stimuli import SSVEPStimulus
 
 import json
 import os
@@ -147,10 +147,13 @@ class InfoWindow(PageWindow):
         self.errlabel.setObjectName("ErrorLabel")
 
         # Hardware Parameters
+        self.hardframe = QFrame()
+        self.hardframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.config = QLabel("Headset configuration:")
         self.model = QLabel("Headset model:")
         self.buffsize = QLabel("Buffer size (samples):")
         self.serialport = QLabel("Board serial port: ")
+        self.stimscript = QLabel("Stimulus script:")
         self.fconfig = QComboBox()
         init_combobox(self.fconfig, "standard", "Standard", "Occipital", "Other")
         self.fmodel = QComboBox()
@@ -160,8 +163,9 @@ class InfoWindow(PageWindow):
         self.fbuffsize.setValidator(QIntValidator(self.buffsize_min, self.buffsize_max))
         self.fserialport = QLineEdit()
         self.fserialport.setPlaceholderText("Ex: COM4")
-        self.hardframe = QFrame()
-        self.hardframe.setFrameStyle(QFrame.Panel | QFrame.Plain)
+        self.fstimscript = QComboBox()
+        init_combobox(self.fstimscript, "Custom", "Custom", "Grid Flash")
+        self.fstimscript.currentTextChanged.connect(self.stim_config)
 
         # Confirmation
         self.confirm_button = QPushButton("Confirm")
@@ -209,7 +213,7 @@ class InfoWindow(PageWindow):
         # Hardware Parameters
         rightlayout = QVBoxLayout()
         hardlayout = QGridLayout(self.hardframe)
-        hardlayout.setRowStretch(5, 2)
+        hardlayout.setRowStretch(6, 2)
         hardlayout.setRowMinimumHeight(6, 2)
         hardlayout.addWidget(self.config, 1, 0)
         hardlayout.addWidget(self.fconfig, 1, 1)
@@ -219,11 +223,15 @@ class InfoWindow(PageWindow):
         hardlayout.addWidget(self.fbuffsize, 3, 1)
         hardlayout.addWidget(self.serialport, 4, 0)
         hardlayout.addWidget(self.fserialport, 4, 1)
-        hardlayout.addWidget(self.errdiv, 5, 0, 1, 2, Qt.AlignBottom)
-        hardlayout.addWidget(self.datelabel, 6, 0, Qt.AlignBottom)
-        hardlayout.addWidget(self.timelabel, 6, 1, Qt.AlignBottom | Qt.AlignRight)
-        hardlayout.addWidget(self.errlabel, 7, 0, 1, 2, Qt.AlignBottom)
+        hardlayout.addWidget(self.stimscript, 5, 0)
+        hardlayout.addWidget(self.fstimscript, 5, 1)
+
+        hardlayout.addWidget(self.errdiv, 7, 0, 1, 2, Qt.AlignBottom)
+        hardlayout.addWidget(self.datelabel, 8, 0, Qt.AlignBottom)
+        hardlayout.addWidget(self.timelabel, 8, 1, Qt.AlignBottom | Qt.AlignRight)
+        hardlayout.addWidget(self.errlabel, 9, 0, 1, 2, Qt.AlignBottom)
         rightlayout.addWidget(self.hardframe)
+        self.hardlayout = hardlayout
 
         middlebar.addLayout(rightlayout)
 
@@ -356,6 +364,14 @@ class InfoWindow(PageWindow):
         dir = QFileDialog.getExistingDirectory(self, "Choose a directory")
         self.curdir.setText(dir)
 
+    @pyqtSlot(str)
+    def stim_config(self, new):
+        if new == "Grid Flash":
+            self.hardlayout.addLayout(GridStimMenu(), 6, 0, 1, 2)
+        else:
+            menu = self.hardlayout.itemAtPosition(6, 0)
+            menu.clear()
+
 
 class CollectionWindow(PageWindow):
     """Displays session controls and real time information (timers, logs, activate state)"""
@@ -389,7 +405,7 @@ class CollectionWindow(PageWindow):
         self.bcount = int(self.info['SessionParams']['BlockCount'])
         self.blength = int(self.info['SessionParams']['BlockLength'])
         self.stimcycle = self.info['SessionParams']['StimCycle']
-        self.stim = TestStim()
+        self.stim = stim
 
         self.session_status = "Preparing"
         self.current_block = 0
@@ -491,11 +507,6 @@ class CollectionWindow(PageWindow):
         loglayout.setStretchFactor(self.log_label, 1)
         loglayout.setStretchFactor(self.logbox, 10)
         gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
-
-        # stim_layout = QVBoxLayout(self.stim_panel)
-        # self.stim = TestStim(self.stim_panel)
-        # stim_layout.addWidget(self.stim)
-        # gridlayout.addWidget(self.stim_panel, 0, 2, 3, 3)
 
         layout.addLayout(gridlayout)
         self.setLayout(layout)
@@ -639,7 +650,6 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(False)
         if self.stim:
             self.stim.show()
-            self.stim.start()
 
     def new_session(self):
         self.goto("info", True)
@@ -668,7 +678,7 @@ class CollectionWindow(PageWindow):
         else:
             self.set_info_status(self.csession.get_error(), error=True)
         if self.stim:
-            self.stim.active = False
+            self.stim.exit()
 
     def stop_session(self):
         self.stop_event.set()
@@ -681,7 +691,7 @@ class CollectionWindow(PageWindow):
         else:
             self.set_info_status("Complete", error=False)
         if self.stim:
-            self.stim.active = False
+            self.stim.exit()
 
     def tlabel(self):
         self.t += 1
