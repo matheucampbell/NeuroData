@@ -100,12 +100,16 @@ try:
     query = redivis.query(qexp)
 except OSError:
     if platform.system() == "Linux" or platform.system() == "Darwin":
-        print("Error: Redivis API token not set. Run 'export REDIVIS_API_TOKEN=your_token' in terminal "
+        print("Error: Redivis API token not set. Run 'export REDIVIS_API_TOKEN=your_token' in your terminal "
               "before retrieving data.")
     elif platform.system() == 'Windows':
         print("Error: Redivis API token not set. Run '$Env:REDIVIS_API_TOKEN = 'your_token' in PowerShell "
               "before retrieving data.")
     sys.exit(1)
+
+if not query.get()['outputNumRows']:
+    print("0 sessions found. Try again with different criteria.")
+    sys.exit(0)
 
 rows = query.list_rows()
 
