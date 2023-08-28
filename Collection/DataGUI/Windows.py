@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QFrame, QLabel, QLineEdit, QTextEdit, QComboBox, QP
 from threading import Thread
 from time import sleep
 from Style import StateIndicator, QTextEditLogger
+from StockStim.Test import TestStim
 
 import json
 import os
@@ -362,7 +363,7 @@ class CollectionWindow(PageWindow):
         super().__init__()
         self.setObjectName("FullFrame")
 
-    def init_session(self, infopath, csession, new=True):
+    def init_session(self, infopath, csession, new=True, stim=None):
         """Set up for collection session
         
         Parameters
@@ -388,6 +389,7 @@ class CollectionWindow(PageWindow):
         self.bcount = int(self.info['SessionParams']['BlockCount'])
         self.blength = int(self.info['SessionParams']['BlockLength'])
         self.stimcycle = self.info['SessionParams']['StimCycle']
+        self.stim = TestStim()
 
         self.session_status = "Preparing"
         self.current_block = 0
@@ -489,6 +491,12 @@ class CollectionWindow(PageWindow):
         loglayout.setStretchFactor(self.log_label, 1)
         loglayout.setStretchFactor(self.logbox, 10)
         gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
+
+        # stim_layout = QVBoxLayout(self.stim_panel)
+        # self.stim = TestStim(self.stim_panel)
+        # stim_layout.addWidget(self.stim)
+        # gridlayout.addWidget(self.stim_panel, 0, 2, 3, 3)
+
         layout.addLayout(gridlayout)
         self.setLayout(layout)
 
@@ -629,6 +637,9 @@ class CollectionWindow(PageWindow):
         self.entry_button.setDisabled(False)
         self.start_button.setDisabled(True)
         self.stop_button.setDisabled(False)
+        if self.stim:
+            self.stim.show()
+            self.stim.start()
 
     def new_session(self):
         self.goto("info", True)
@@ -656,6 +667,8 @@ class CollectionWindow(PageWindow):
             self.set_info_status("Complete", error=False)
         else:
             self.set_info_status(self.csession.get_error(), error=True)
+        if self.stim:
+            self.stim.active = False
 
     def stop_session(self):
         self.stop_event.set()
@@ -667,6 +680,8 @@ class CollectionWindow(PageWindow):
             self.set_info_status(self.csession.get_error(), error=True)
         else:
             self.set_info_status("Complete", error=False)
+        if self.stim:
+            self.stim.active = False
 
     def tlabel(self):
         self.t += 1
