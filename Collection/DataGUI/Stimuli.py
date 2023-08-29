@@ -1,4 +1,5 @@
-"""Threaded SSVEP stimulus with GPU acceleration"""
+"""Built-in Stimuli Classes"""
+from datetime import datetime
 from PyQt5.QtWidgets import QWidget, QGridLayout, QOpenGLWidget
 from PyQt5.QtCore import QThread, Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QPainter, QBrush, QFont, QSurfaceFormat
@@ -52,7 +53,19 @@ class FlashingBox(QOpenGLWidget):
 
 
 class GridFlash(QWidget):
-    def __init__(self, frequencies, rows, cols):
+    """
+    Flashes frequencies on a grid
+    
+    Parameters
+    ----------
+    frequencies: int
+        frequencies to include
+    rows: int
+        number of rows in grid
+    cols: int
+        number of columns in grid
+    """
+    def __init__(self, frequencies: list, rows: int, cols: int):
         super().__init__()
         layout = QGridLayout()
         self.setLayout(layout)
@@ -80,6 +93,41 @@ class GridFlash(QWidget):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
+    
+    def exit(self):
+        self.close()
+
+
+class RandomPrompt(QWidget):
+    """
+    Randomly shows prompt with given text during active stimulus blocks
+    
+    Parameters
+    ----------
+    prompt: str
+        Text to put in prompt
+    ppb: int
+        Number of prompts per block of active stimulus
+    cooldown: int
+        Minimum time between prompts in seconds   
+    stimcycle: str
+        Stimulus cycle for the session
+    dur: float
+        How long to leave the prompt on the screen
+    """
+    def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, dur=1.5):
+        super().__init__()
+        layout = QGridLayout()
+        self.setLayout(layout)
+        self.setMinimumSize(650, 650)
+        self.dur = dur
+
+    def show(self):
+        self.start()
+        super().show()
+
+    def start(self):
+        print("START:", datetime.now())
     
     def exit(self):
         self.close()

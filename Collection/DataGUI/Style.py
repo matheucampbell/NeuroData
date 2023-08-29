@@ -3,7 +3,7 @@ import math
 
 from numpy import linspace
 from PyQt5.QtCore import Qt, QFileSystemWatcher
-from PyQt5.QtGui import QIntValidator
+from PyQt5.QtGui import QIntValidator, QDoubleValidator
 from PyQt5.QtWidgets import QFrame, QPlainTextEdit, QGridLayout, QLabel, QLineEdit
 
 
@@ -36,9 +36,9 @@ class GridStimMenu(QGridLayout):
     def __init__(self):
         super().__init__()
         self.stimname = "GridFlash"
-        self.active = True
         self.setSpacing(5)
         self.setColumnStretch(0, 2)
+
         self.minfield = QLineEdit()
         self.minfield.setValidator(QIntValidator(1, 10000))
         self.maxfield = QLineEdit()
@@ -60,7 +60,6 @@ class GridStimMenu(QGridLayout):
         self.addWidget(self.stepfield, 8, 1)
     
     def clear(self):
-        self.active = False
         self.minfield.setParent(None)
         self.maxfield.setParent(None)
         self.stepfield.setParent(None)
@@ -69,7 +68,7 @@ class GridStimMenu(QGridLayout):
         self.steplabel.clear()
         self.setParent(None)
 
-    def validate(self):
+    def validate(self, window=None):
         if not self.minfield.text().strip():
             return False, "Minimum freq. missing."
         if not self.maxfield.text().strip():
@@ -84,7 +83,59 @@ class GridStimMenu(QGridLayout):
         """Return usable args for running the stim script"""
         rows = cols = math.ceil(math.sqrt(int(self.stepfield.text())))
         min, max, steps = int(self.minfield.text()), int(self.maxfield.text()), int(self.stepfield.text())
-        return (linspace(min, max, steps), rows, cols)
+        return linspace(min, max, steps), rows, cols
+
+
+class RandomPromptMenu(QGridLayout):
+    def __init__(self):
+        super().__init__()
+        self.stimname = "RandomPrompt"
+        self.iwindow = None
+        self.setSpacing(5)
+        self.setColumnStretch(0, 2)
+
+        self.pfield = QLineEdit()
+        self.ppbfield = QLineEdit()
+        self.ppbfield.setValidator(QIntValidator(1, 1000))
+        self.cfield = QLineEdit()
+        self.cfield.setValidator(QDoubleValidator(0.00, 10000, 2))
+        self.plabel = QLabel("Prompt text:")
+        self.ppblabel = QLabel("Prompts per block:")
+        self.clabel = QLabel("Prompt cooldown:")
+        self.plabel.setObjectName("MenuLabel")
+        self.ppblabel.setObjectName("MenuLabel")
+        self.clabel.setObjectName("MenuLabel")
+
+        self.addWidget(self.plabel, 6, 0, Qt.AlignRight)
+        self.addWidget(self.ppblabel, 7, 0, Qt.AlignRight)
+        self.addWidget(self.clabel, 8, 0, Qt.AlignRight)
+        self.addWidget(self.pfield, 6, 1)
+        self.addWidget(self.ppbfield, 7, 1)
+        self.addWidget(self.cfield, 8, 1)
+
+    def clear(self):
+        self.pfield.setParent(None)
+        self.ppbfield.setParent(None)
+        self.cfield.setParent(None)
+        self.plabel.clear()
+        self.ppbfield.clear()
+        self.plabel.clear()
+        self.setParent(None)
+
+    def validate(self, iwindow):
+        self.iwindow = iwindow
+        prompt = self.pfield.text().strip()
+        ppb = int(self.ppbfield.text())
+        cooldown = float(self.cfield.text())
+        if not prompt:
+            return False, "No prompt text given."
+        if ppb * cooldown > int(iwindow.fblength.text()):
+            return False, "The specified number of prompts cannot fit in one block."
+        return True, ""
+    
+    def get_args(self):
+        return (self.pfield.text().strip(), int(self.ppbfield.text()), float(self.cfield.text()), 
+                self.iwindow.fstimcycle.text().strip())
 
 
 class QTextEditLogger(QPlainTextEdit):

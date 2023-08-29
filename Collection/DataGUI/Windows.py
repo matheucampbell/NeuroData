@@ -1,6 +1,7 @@
 import BoardBridge
 import BoardlessBridge
 
+from collections import namedtuple
 from brainflow import BrainFlowInputParams, BrainFlowError, LogLevels
 from brainflow.board_shim import BoardShim
 from datetime import datetime
@@ -10,8 +11,8 @@ from PyQt5.QtWidgets import (QFrame, QLabel, QLineEdit, QTextEdit, QComboBox, QP
                              QVBoxLayout, QHBoxLayout, QGridLayout)
 from threading import Thread
 from time import sleep
-from Style import StateIndicator, QTextEditLogger, GridStimMenu
-from Stimuli import GridFlash
+from Style import StateIndicator, QTextEditLogger, GridStimMenu, RandomPromptMenu
+from Stimuli import GridFlash, RandomPrompt
 
 import json
 import os
@@ -85,7 +86,8 @@ class InfoWindow(PageWindow):
     """Accepts and validates input for info.json"""
     boardmap = {'Cyton': (0, 250),
                 'CytonDaisy': (2, 125)}
-    stimmap = {'GridFlash': GridFlash}
+    stimmap = {'GridFlash': GridFlash,
+               'RandomPrompt': RandomPrompt}
     buffsize_d = 100000
     buffsize_max = 450000
     buffsize_min = 1000
@@ -104,7 +106,7 @@ class InfoWindow(PageWindow):
         self.infodict['Date'] = self.date
         self.infodict['Time'] = self.time
         self.board = None
-        self.stimscript = False
+        self.stimscript = None
 
         # Directory Row
         self.dirlabel = QLabel("Session directory: ")
@@ -166,7 +168,7 @@ class InfoWindow(PageWindow):
         self.fserialport = QLineEdit()
         self.fserialport.setPlaceholderText("Ex: COM4")
         self.fstimscript = QComboBox()
-        init_combobox(self.fstimscript, "Custom", "Custom", "Grid Flash")
+        init_combobox(self.fstimscript, "External", "External", "Grid Flash", "Random Prompting")
         self.fstimscript.currentTextChanged.connect(self.stim_config)
 
         # Confirmation
@@ -334,7 +336,7 @@ class InfoWindow(PageWindow):
             return False, "No serial port supplied."
         
         menu = self.hardlayout.itemAtPosition(6, 0)
-        if menu and not (res := menu.validate())[0]:
+        if menu and not (res := menu.validate(self))[0]:
             return res
         elif not menu:
             self.stimscript = None
@@ -363,7 +365,7 @@ class InfoWindow(PageWindow):
 
         bcount = int(bcount)
         blength = int(blength)
-        info['Annotations'] = [(float(blength*k), f"Block{k}") for k in range(1, bcount+1)]
+        info['Annotations'] += [(float(blength*k), f"Block{k}") for k in range(1, bcount+1)]
 
         suffix = self.date + "_" + str(datetime.now().timestamp()).split(".")[1]
         self.sespath = os.path.join(self.curdir.text(), f"session_{suffix}")
@@ -379,6 +381,8 @@ class InfoWindow(PageWindow):
     def stim_config(self, new):
         if new == "Grid Flash":
             self.hardlayout.addLayout(GridStimMenu(), 6, 0, 1, 2)
+        elif new == "Random Prompting":
+            self.hardlayout.addLayout(RandomPromptMenu(), 6, 0, 1, 2)
         else:
             menu = self.hardlayout.itemAtPosition(6, 0)
             menu.clear()
