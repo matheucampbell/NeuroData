@@ -250,6 +250,7 @@ class InfoWindow(PageWindow):
         self.fblength.clear()
         self.fstimcycle.clear()
         self.fdescription.clear()
+        self.fstimscript.setCurrentText("Grid Flash")
         self.fstimscript.setCurrentText("External")
 
         self.date = datetime.now().strftime("%m-%d-%y")
