@@ -65,9 +65,11 @@ class GridFlash(QWidget):
     cols: int
         number of columns in grid
     """
+    exit_sig = pyqtSignal()
     def __init__(self, frequencies: list, rows: int, cols: int):
         super().__init__()
         layout = QGridLayout()
+        self.active = True
         self.setLayout(layout)
         self.setMinimumSize(650, 650)
 
@@ -93,9 +95,9 @@ class GridFlash(QWidget):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
-    
-    def exit(self):
-        self.close()
+        
+    def closeEvent(self, event):
+        self.exit_sig.emit()
 
 
 class ToggleThread(QThread):
@@ -123,7 +125,7 @@ class ToggleThread(QThread):
 
 
 class PromptBox(QOpenGLWidget):
-    def __init__(self, text, times, dur):
+    def __init__(self, text, times, dur,):
         super().__init__()
         self.text = text
         self.flash_state = False
@@ -167,8 +169,10 @@ class RandomPrompt(QWidget):
     dur: float
         How long to leave the prompt on the screen
     """
+    exit_sig = pyqtSignal()
     def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, dur=1.5):
         super().__init__()
+        self.active = False
         self.prompt = prompt
         self.ppb = ppb
         self.cooldown = cooldown 
@@ -196,8 +200,10 @@ class RandomPrompt(QWidget):
 
     def start(self):
         print("START:", datetime.now())
+        self.active = True
         box = PromptBox(self.prompt, [2, 8, 14], self.dur)
         self.layout.addWidget(box)
     
-    def exit(self):
-        self.close()
+    def closeEvent(self, event):
+        self.exit_sig.emit()
+

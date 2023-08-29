@@ -250,11 +250,13 @@ class InfoWindow(PageWindow):
         self.fblength.clear()
         self.fstimcycle.clear()
         self.fdescription.clear()
+        self.fstimscript.setCurrentText("External")
 
         self.date = datetime.now().strftime("%m-%d-%y")
         self.time = datetime.now().strftime("%H:%M")
         self.infodict['Date'] = self.date
         self.infodict['Time'] = self.time
+        self.stimscript = None
 
     def confirm(self):
         """Validate info, proceed to collection if valid"""
@@ -421,6 +423,8 @@ class CollectionWindow(PageWindow):
         self.blength = int(self.info['SessionParams']['BlockLength'])
         self.stimcycle = self.info['SessionParams']['StimCycle']
         self.stim = stim
+        if self.stim:
+            self.stim.exit_sig.connect(self.end_stim)
 
         self.session_status = "Preparing"
         self.current_block = 0
@@ -693,7 +697,11 @@ class CollectionWindow(PageWindow):
         else:
             self.set_info_status(self.csession.get_error(), error=True)
         if self.stim:
-            self.stim.exit()
+            self.stim.close()
+    
+    def end_stim(self):
+        self.stim.close()
+        self.pause_stream()
 
     def stop_session(self):
         self.stop_event.set()
@@ -706,7 +714,7 @@ class CollectionWindow(PageWindow):
         else:
             self.set_info_status("Complete", error=False)
         if self.stim:
-            self.stim.exit()
+            self.stim.close()
 
     def tlabel(self):
         self.t += 1

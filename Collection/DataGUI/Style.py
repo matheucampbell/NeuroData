@@ -125,12 +125,18 @@ class RandomPromptMenu(QGridLayout):
     def validate(self, iwindow):
         self.iwindow = iwindow
         prompt = self.pfield.text().strip()
+        
+        if not prompt:
+            return False, "No prompt text supplied."
+        if not self.ppbfield.text().strip():
+            return False, "Prompts per block not supplied."
+        if not self.cfield.text().strip():
+            return False, "No cooldown supplied."
+        
         ppb = int(self.ppbfield.text())
         cooldown = float(self.cfield.text())
-        if not prompt:
-            return False, "No prompt text given."
         if ppb * cooldown > int(iwindow.fblength.text()):
-            return False, "The specified number of prompts cannot fit in one block."
+            return False, "Too many prompts for one block."
         return True, ""
     
     def get_args(self):
