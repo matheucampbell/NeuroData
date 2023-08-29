@@ -8,9 +8,8 @@ from PyQt5.QtGui import QColor, QPainter, QBrush, QFont, QSurfaceFormat
 class FlashingThread(QThread):
     flash_signal = pyqtSignal()
 
-    def __init__(self, frequency, widget):
+    def __init__(self, frequency):
         super().__init__()
-        self.widget = widget
         self.frequency = frequency
         self.is_running = True
 
@@ -21,7 +20,6 @@ class FlashingThread(QThread):
             self.msleep(int(1000 * interval))
 
     def stop(self):
-        self.widget.end()
         self.is_running = False
 
 
