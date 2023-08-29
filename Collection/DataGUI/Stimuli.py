@@ -1,7 +1,6 @@
 """Built-in Stimuli Classes"""
-from datetime import datetime
 from PyQt5.QtWidgets import (QWidget, QGridLayout, QVBoxLayout, QOpenGLWidget)
-from PyQt5.QtCore import QThread, Qt, pyqtSignal, QSize
+from PyQt5.QtCore import QThread, Qt, QRect, pyqtSignal
 from PyQt5.QtGui import QColor, QPainter, QBrush, QFont, QSurfaceFormat
 
 
@@ -14,7 +13,7 @@ class FlashingThread(QThread):
         self.is_running = True
 
     def run(self):
-        interval = 1 / (2 * self.frequency)  # Calculate interval between flashes
+        interval = 1 / (2 * self.frequency)
         while self.is_running:
             self.flash_signal.emit()
             self.msleep(int(1000 * interval))
@@ -132,6 +131,10 @@ class PromptBox(QOpenGLWidget):
         self.toggle_thread = ToggleThread(times, dur)
         self.toggle_thread.flash_signal.connect(self.toggle_flash)
         self.toggle_thread.start()
+        w, h = 250, 100
+        x = self.width() // 2 - w // 2
+        y = self.height() // 2
+        self.coords = (x, y, w, h)
 
     def toggle_flash(self):
         self.flash_state = not self.flash_state
@@ -140,12 +143,15 @@ class PromptBox(QOpenGLWidget):
     def paintGL(self):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        color = QColor(Qt.black) if not self.flash_state else QColor(Qt.white)
-        painter.setBrush(QBrush(color))
+        painter.setBrush(QBrush(QColor(29, 35, 36)))
         painter.drawRect(self.rect())
-        painter.setPen(QColor(Qt.white) if not self.flash_state else QColor(Qt.black))
-        # painter.setFont(QFont('Arial', 16))
-        painter.drawText(self.rect(), Qt.AlignCenter, self.text)
+        color = QColor(0, 123, 255) if self.flash_state else QColor(29, 35, 36)
+        painter.setBrush(QBrush(color))
+
+        rect = QRect(*self.coords)
+        painter.drawRect(rect)
+        painter.setPen(QColor(Qt.white) if self.flash_state else QColor(29, 35, 36))
+        painter.drawText(rect, Qt.AlignCenter, self.text)
 
     def closeEvent(self, event):
         self.flashing_thread.stop()
@@ -184,7 +190,7 @@ class RandomPrompt(QWidget):
         self.setMinimumSize(650, 650)
 
         p = self.palette()
-        p.setColor(self.backgroundRole(), Qt.black)
+        p.setColor(self.backgroundRole(), QColor(29, 35, 36))
         self.setPalette(p)
 
         fmt = QSurfaceFormat()
@@ -199,9 +205,8 @@ class RandomPrompt(QWidget):
         super().show()
 
     def start(self):
-        print("START:", datetime.now())
         self.active = True
-        box = PromptBox(self.prompt, [2, 8, 14], self.dur)
+        box = PromptBox(self.prompt, [2, 4, 6, 8, 10], self.dur)
         self.layout.addWidget(box)
     
     def closeEvent(self, event):
