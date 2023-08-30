@@ -61,7 +61,7 @@ class GridFlash(QWidget):
     
     Parameters
     ----------
-    frequencies: int
+    frequencies: list
         frequencies to include
     rows: int
         number of rows in grid

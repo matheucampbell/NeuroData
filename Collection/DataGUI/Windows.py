@@ -622,6 +622,7 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(False)
         if self.stim:
             self.stim.show()
+            self.csession.log_message(LogLevels.LEVEL_INFO, f"[GUI]: {type(self.stim).__name__} launched.")
 
     def new_session(self):
         self.goto("info", True)
@@ -651,9 +652,10 @@ class CollectionWindow(PageWindow):
             self.status_panel.set_session_status(self.csession.get_error(), error=True)
         if self.stim:
             self.stim.close()
-    
+
     def end_stim(self):
         self.stim.close()
+        self.csession.log_message(LogLevels.LEVEL_INFO, f"[GUI]: {type(self.stim).__name__} closed.")
         self.pause_stream()
 
     def stop_session(self):

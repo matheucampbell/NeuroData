@@ -113,7 +113,7 @@ class RandomPromptMenu(QGridLayout, StimMenu):
     def __init__(self):
         super().__init__(stimname="RandomPrompt")
         FieldTuple = namedtuple("FieldTuple", ["pfield", "ppbfield", "dfield", "cfield"])
-        LabelTuple = namedtuple("LabelTuple", ["plabel", "pplabel", "clabel", "dlabel"])
+        LabelTuple = namedtuple("LabelTuple", ["plabel", "ppblabel", "dlabel", "clabel"])
         self.iwindow = None
 
         pfield = QLineEdit()  # Prompt field
@@ -128,13 +128,13 @@ class RandomPromptMenu(QGridLayout, StimMenu):
 
         plabel = QLabel("Prompt text:")
         ppblabel = QLabel("Prompts per block:")
-        clabel = QLabel("Prompt cooldown:")
         dlabel = QLabel("Prompt duration:")
-        self.labels = LabelTuple(plabel, ppblabel, clabel, dlabel)
+        clabel = QLabel("Prompt cooldown:")
+        self.labels = LabelTuple(plabel, ppblabel, dlabel, clabel)
 
         self.populate()
 
-    def validate(self, iwindow):
+    def validate(self, iwindow=None):
         self.iwindow = iwindow
         prompt = self.fields.pfield.text().strip()
         
@@ -142,10 +142,10 @@ class RandomPromptMenu(QGridLayout, StimMenu):
             return False, "No prompt text supplied."
         if not self.fields.ppbfield.text().strip():
             return False, "Prompts per block not supplied."
-        if not self.fields.cfield.text().strip():
-            return False, "No cooldown supplied."
         if not self.fields.dfield.text().strip():
             return False, "No duration supplied."
+        if not self.fields.cfield.text().strip():
+            return False, "No cooldown supplied."
         
         ppb = int(self.fields.ppbfield.text())
         cooldown = float(self.fields.cfield.text())
