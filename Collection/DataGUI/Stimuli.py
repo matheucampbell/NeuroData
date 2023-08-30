@@ -3,8 +3,8 @@ import random
 import time
 
 from PyQt5.QtWidgets import (QWidget, QGridLayout, QVBoxLayout, QOpenGLWidget)
-from PyQt5.QtCore import QThread, Qt, QRect, pyqtSignal
-from PyQt5.QtGui import QColor, QPainter, QBrush, QFont, QSurfaceFormat
+from PyQt5.QtCore import QThread, Qt, QRectF, pyqtSignal
+from PyQt5.QtGui import QColor, QPainter, QPainterPath, QBrush, QFont, QSurfaceFormat
 
 
 class FlashingThread(QThread):
@@ -43,7 +43,7 @@ class FlashingBox(QOpenGLWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         color = QColor(Qt.black) if self.flash_state else QColor(Qt.white)
         painter.setBrush(QBrush(color))
-        # painter.drawEllipse(self.rect())
+
         painter.drawRect(self.rect())
         painter.setPen(QColor(Qt.black) if not self.flash_state else QColor(Qt.white))
         painter.setFont(QFont('Arial', 16))
@@ -117,6 +117,7 @@ class ToggleThread(QThread):
             for t in self.times:
                 while time.time() < self.start_time + t:
                     self.msleep(100)
+
                 self.flash_signal.emit()
                 self.msleep(int(1000 * self.dur))
                 self.flash_signal.emit()
@@ -145,13 +146,13 @@ class PromptBox(QOpenGLWidget):
     def paintGL(self):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.setBrush(QBrush(QColor(29, 35, 36)))
-        painter.drawRect(self.rect())
-        color = QColor(0, 123, 255) if self.flash_state else QColor(29, 35, 36)
-        painter.setBrush(QBrush(color))
+        painter.fillRect(self.rect(), QColor(29, 35, 36))
 
-        rect = QRect(*self.coords)
-        painter.drawRect(rect)
+        path = QPainterPath()
+        rect = QRectF(*self.coords)
+        path.addRoundedRect(rect, 10, 10)
+        color = QColor(0, 123, 255) if self.flash_state else QColor(29, 35, 36)
+        painter.fillPath(path, color)
         painter.setPen(QColor(Qt.white) if self.flash_state else QColor(29, 35, 36))
         painter.drawText(rect, Qt.AlignCenter, self.text)
 
@@ -246,7 +247,6 @@ class RandomPrompt(QWidget):
     def start(self):
         self.active = True
         times = self.gen_times()
-        print(times)
         box = PromptBox(self.prompt, times, self.dur, time.time())
         self.layout.addWidget(box)
     
