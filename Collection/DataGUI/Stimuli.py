@@ -2,7 +2,6 @@
 import random
 import time
 import simplejson as json
-import os
 
 from PyQt5.QtWidgets import (QWidget, QGridLayout, QVBoxLayout, QOpenGLWidget)
 from PyQt5.QtCore import QThread, Qt, QRectF, pyqtSignal
