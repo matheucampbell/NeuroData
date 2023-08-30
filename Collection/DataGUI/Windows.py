@@ -168,7 +168,7 @@ class InfoWindow(PageWindow):
         self.fserialport = QLineEdit()
         self.fserialport.setPlaceholderText("Ex: COM4")
         self.fstimscript = QComboBox()
-        init_combobox(self.fstimscript, "External", "External", "Grid Flash", "Random Prompting")
+        init_combobox(self.fstimscript, "External/None", "External/None", "Grid Flash", "Random Prompting")
         self.fstimscript.currentTextChanged.connect(self.stim_config)
 
         # Confirmation
@@ -250,7 +250,7 @@ class InfoWindow(PageWindow):
         self.fblength.clear()
         self.fstimcycle.clear()
         self.fdescription.clear()
-        self.fstimscript.setCurrentText("External")
+        self.fstimscript.setCurrentText("External/None")
         if menu := self.hardlayout.itemAtPosition(6, 0):
             menu.clear()
 
