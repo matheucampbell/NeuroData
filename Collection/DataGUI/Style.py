@@ -2,6 +2,7 @@
 import math
 
 from abc import ABC, ABCMeta, abstractmethod
+from collections import namedtuple
 from numpy import linspace
 from PyQt5.QtCore import Qt, QFileSystemWatcher
 from PyQt5.QtGui import QIntValidator, QDoubleValidator
@@ -38,14 +39,27 @@ class QABCMeta(ABCMeta, type(QGridLayout)):
 
 
 class StimMenu(ABC, metaclass=QABCMeta):
+    """Built-in stimulus menus should subclass this with validate() and get_args() implemented"""
     def __init__(self, stimname):
         self.stimname = stimname
+        self.fields = None  # Subclass should set these in init (named tuples are convenient)
+        self.labels = None  # Subclass should set these in init (named tuples are convenient)
         self.setSpacing(5)
         self.setColumnStretch(0, 2)
 
-    @abstractmethod
+    def populate(self):
+        self.setSpacing(5)
+        for row, label in enumerate(self.labels):
+            label.setObjectName("MenuLabel")
+            self.addWidget(label, row, 0, Qt.AlignRight)
+        for row, field in enumerate(self.fields):
+            self.addWidget(field, row, 1)
+    
     def clear(self):
         """Clear all menu elements and set parent of self to None"""
+        for element in self.fields + self.labels:
+            element.setParent(None)
+        self.setParent(None)
 
     @abstractmethod
     def validate(self, window=None):
@@ -59,114 +73,82 @@ class StimMenu(ABC, metaclass=QABCMeta):
 class GridStimMenu(QGridLayout, StimMenu):
     def __init__(self):
         super().__init__(stimname="GridFlash")
+        FieldTuple = namedtuple("FieldTuple", ["minfield", "maxfield", "stepfield"])
+        LabelTuple = namedtuple("LabelTuple", ["minlabel", "maxlabel", "steplabel"])
+        
+        minfield = QLineEdit()
+        minfield.setValidator(QIntValidator(1, 10000))
+        maxfield = QLineEdit()
+        maxfield.setValidator(QIntValidator(1, 10000))
+        stepfield = QLineEdit()
+        self.fields = FieldTuple(minfield, maxfield, stepfield)
 
-        self.minfield = QLineEdit()
-        self.minfield.setValidator(QIntValidator(1, 10000))
-        self.maxfield = QLineEdit()
-        self.maxfield.setValidator(QIntValidator(1, 10000))
-        self.stepfield = QLineEdit()
-        self.maxfield.setValidator(QIntValidator(1, 50))
-        self.minlabel = QLabel("Freq. Minimum (Hz):")
-        self.maxlabel = QLabel("Freq. Maximum (Hz):")
-        self.steplabel = QLabel("Step count:")
-        self.minlabel.setObjectName("MenuLabel")
-        self.maxlabel.setObjectName("MenuLabel")
-        self.steplabel.setObjectName("MenuLabel")
+        minlabel = QLabel("Freq. Minimum (Hz):")
+        maxlabel = QLabel("Freq. Maximum (Hz):")
+        steplabel = QLabel("Step count:")
+        self.labels = LabelTuple(minlabel, maxlabel, steplabel)
 
-        self.addWidget(self.minlabel, 0, 0, Qt.AlignRight)
-        self.addWidget(self.maxlabel, 1, 0, Qt.AlignRight)
-        self.addWidget(self.steplabel, 2, 0, Qt.AlignRight)
-        self.addWidget(self.minfield, 0, 1)
-        self.addWidget(self.maxfield, 1, 1)
-        self.addWidget(self.stepfield, 2, 1)
-    
-    def clear(self):
-        self.minfield.setParent(None)
-        self.maxfield.setParent(None)
-        self.stepfield.setParent(None)
-        self.minlabel.setParent(None)
-        self.maxlabel.setParent(None)
-        self.steplabel.setParent(None)
-        self.setParent(None)
+        self.populate()
 
     def validate(self, window=None):
-        if not self.minfield.text().strip():
+        if not self.fields.minfield.text().strip():
             return False, "Minimum freq. missing."
-        if not self.maxfield.text().strip():
+        if not self.fields.maxfield.text().strip():
             return False, "Maximum freq. missing."
-        if not self.stepfield.text().strip():
+        if not self.fields.stepfield.text().strip():
             return False, "Step count missing."
-        if not int(self.minfield.text()) <= int(self.minfield.text()):
+        if not int(self.fields.minfield.text()) <= int(self.fields.minfield.text()):
             return False, "Minimum freq. cannot be greater than maximum freq."
         return True, ""
 
     def get_args(self):
         """Return usable args for running the stim script"""
-        rows = cols = math.ceil(math.sqrt(int(self.stepfield.text())))
-        min, max, steps = int(self.minfield.text()), int(self.maxfield.text()), int(self.stepfield.text())
+        rows = cols = math.ceil(math.sqrt(int(self.fields.stepfield.text())))
+        min, max, steps = int(self.fields.minfield.text()), int(self.fields.maxfield.text()), int(self.fields.stepfield.text())
         return linspace(min, max, steps), rows, cols
 
 
 class RandomPromptMenu(QGridLayout, StimMenu):
     def __init__(self):
         super().__init__(stimname="RandomPrompt")
+        FieldTuple = namedtuple("FieldTuple", ["pfield", "ppbfield", "dfield", "cfield"])
+        LabelTuple = namedtuple("LabelTuple", ["plabel", "pplabel", "clabel", "dlabel"])
         self.iwindow = None
 
-        self.pfield = QLineEdit()  # Prompt field
-        self.ppbfield = QLineEdit()  # Prompts per block field
-        self.ppbfield.setValidator(QIntValidator(1, 1000))
-        self.dfield = QLineEdit()  # Prompt duration field
-        self.dfield.setPlaceholderText("1")
-        self.dfield.setValidator(QDoubleValidator(0.25, 1000, 2))
-        self.cfield = QLineEdit()  # Prompt cooldown field
-        self.cfield.setValidator(QDoubleValidator(0.25, 10000, 2))
+        pfield = QLineEdit()  # Prompt field
+        ppbfield = QLineEdit()  # Prompts per block field
+        ppbfield.setValidator(QIntValidator(1, 1000))
+        cfield = QLineEdit()  # Prompt cooldown field
+        cfield.setPlaceholderText("1")
+        cfield.setValidator(QDoubleValidator(0.25, 10000, 2))
+        dfield = QLineEdit()  # Prompt duration field
+        dfield.setValidator(QDoubleValidator(0.25, 1000, 2))
+        self.fields = FieldTuple(pfield, ppbfield, dfield, cfield)
 
-        self.plabel = QLabel("Prompt text:")
-        self.ppblabel = QLabel("Prompts per block:")
-        self.clabel = QLabel("Prompt cooldown:")
-        self.dlabel = QLabel("Prompt duration:")
+        plabel = QLabel("Prompt text:")
+        ppblabel = QLabel("Prompts per block:")
+        clabel = QLabel("Prompt cooldown:")
+        dlabel = QLabel("Prompt duration:")
+        self.labels = LabelTuple(plabel, ppblabel, clabel, dlabel)
 
-        self.plabel.setObjectName("MenuLabel")
-        self.ppblabel.setObjectName("MenuLabel")
-        self.dlabel.setObjectName("MenuLabel")
-        self.clabel.setObjectName("MenuLabel")
-
-        self.addWidget(self.plabel, 0, 0, Qt.AlignRight)
-        self.addWidget(self.ppblabel, 1, 0, Qt.AlignRight)
-        self.addWidget(self.clabel, 2, 0, Qt.AlignRight)
-        self.addWidget(self.dlabel, 3, 0, Qt.AlignRight)
-        self.addWidget(self.pfield, 0, 1)
-        self.addWidget(self.ppbfield, 1, 1)
-        self.addWidget(self.cfield, 2, 1)
-        self.addWidget(self.dfield, 3, 1)
-
-    def clear(self):
-        self.pfield.setParent(None)
-        self.ppbfield.setParent(None)
-        self.cfield.setParent(None)
-        self.dfield.setParent(None)
-        self.plabel.setParent(None)
-        self.ppblabel.setParent(None)
-        self.clabel.setParent(None)
-        self.dlabel.setParent(None)
-        self.setParent(None)
+        self.populate()
 
     def validate(self, iwindow):
         self.iwindow = iwindow
-        prompt = self.pfield.text().strip()
+        prompt = self.fields.pfield.text().strip()
         
         if not prompt:
             return False, "No prompt text supplied."
-        if not self.ppbfield.text().strip():
+        if not self.fields.ppbfield.text().strip():
             return False, "Prompts per block not supplied."
-        if not self.cfield.text().strip():
+        if not self.fields.cfield.text().strip():
             return False, "No cooldown supplied."
-        if not self.dfield.text().strip():
+        if not self.fields.dfield.text().strip():
             return False, "No duration supplied."
         
-        ppb = int(self.ppbfield.text())
-        cooldown = float(self.cfield.text())
-        dur = float(self.dfield.text())
+        ppb = int(self.fields.ppbfield.text())
+        cooldown = float(self.fields.cfield.text())
+        dur = float(self.fields.dfield.text())
         if cooldown < dur:
             return False, "Duration must be shorter than cooldown."
 
@@ -180,8 +162,8 @@ class RandomPromptMenu(QGridLayout, StimMenu):
     def get_args(self):
         if not self.iwindow:
             raise Exception("Args not yet validated.")
-        return (self.pfield.text().strip(), int(self.ppbfield.text()), float(self.cfield.text()), 
-                self.iwindow.fstimcycle.text().strip(), int(self.iwindow.fblength.text()), float(self.dfield.text()))
+        return (self.fields.pfield.text().strip(), int(self.fields.ppbfield.text()), float(self.fields.cfield.text()), 
+                self.iwindow.fstimcycle.text().strip(), int(self.iwindow.fblength.text()), float(self.fields.dfield.text()))
 
 
 class QTextEditLogger(QPlainTextEdit):
