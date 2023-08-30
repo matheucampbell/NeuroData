@@ -480,11 +480,9 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(True)
 
         # Log Box
-        self.log_label = QLabel("Session Logs")
-        self.logbox = self.init_logger()
-        self.log_label.setObjectName("FieldLabels")
-        self.log_panel = QFrame(self)
-        self.log_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
+        log_label = QLabel("Session Logs")
+        log_label.setObjectName("FieldLabels")
+        self.log_panel = LogPanel(self.infopath, log_label, self.csession)
 
     def fill_frame(self):
         """Inserts widgets in layouts"""
@@ -495,18 +493,8 @@ class CollectionWindow(PageWindow):
         gridlayout.setRowStretch(2, 1)
         
         gridlayout.addWidget(self.info_panel, 0, 0, 2, 1)
-
-        # statuslayout = QGridLayout(self.status_panel)
-        # statuslayout.setRowStretch(2, 1)
-        # statuslayout.setColumnStretch(2, 1)
-        # statuslayout.addWidget(self.state_indicator, 0, 0)
-        # statuslayout.addWidget(self.status_label, 0, 1)
-        # statuslayout.addWidget(self.status_info, 1, 0, 2, 2, Qt.AlignTop | Qt.AlignLeft)
-        # statuslayout.addWidget(self.timer_label, 1, 2, Qt.AlignTop | Qt.AlignRight)
-        # statuslayout.addWidget(self.stimer_label, 0, 2, Qt.AlignTop | Qt.AlignRight)
-        # statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
-        # statuslayout.addWidget(self.info_status, 2, 2, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
         gridlayout.addWidget(self.status_panel, 0, 1)
+        gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
 
         buttonlayout = QGridLayout()
         buttonlayout.addWidget(self.entry_annotation, 0, 0, 1, 3)
@@ -514,13 +502,6 @@ class CollectionWindow(PageWindow):
         buttonlayout.addWidget(self.start_button, 1, 0, 1, 2)
         buttonlayout.addWidget(self.stop_button, 1, 2, 1, 2)
         gridlayout.addLayout(buttonlayout, 1, 1)
-
-        loglayout = QVBoxLayout(self.log_panel)
-        loglayout.addWidget(self.log_label, Qt.AlignTop | Qt.AlignLeft)
-        self.logbox.mount(loglayout)
-        loglayout.setStretchFactor(self.log_label, 1)
-        loglayout.setStretchFactor(self.logbox, 10)
-        gridlayout.addWidget(self.log_panel, 2, 0, 1, 2)
 
         layout.addLayout(gridlayout)
         self.setLayout(layout)
@@ -530,7 +511,7 @@ class CollectionWindow(PageWindow):
         self.set_info()
         self.update_status()
         self.set_start_mode('Start', True)
-        self.logbox.clear()
+        self.log_panel.logbox.clear()
         self.status_panel.set_block_time("00:00")
         self.status_panel.set_session_time("00:00")
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
@@ -599,13 +580,6 @@ class CollectionWindow(PageWindow):
         itext = '\n' + sub + proj + resp + stype + srate + config + model + '\n' + cdetails
 
         self.info_panel.set_text(itext)
-
-    # def set_info_status(self, status, error=False):
-    #     if error:
-    #         self.info_status.setStyleSheet("color: #c20808")
-    #     else:
-    #         self.info_status.setStyleSheet("color: #c5cfde")
-    #     self.info_status.setText(status[:25])
 
     def update_status(self):
         if 1 <= self.current_block < len(self.stimcycle):  # Session in progress and not last block
@@ -741,6 +715,7 @@ class StatusPanel(QFrame):
     def __init__(self, status_label, status_info, block_status, 
                  block_timer, session_timer, state_indicator, infslabel):
         super().__init__()
+        self.setFrameStyle(QFrame.Panel | QFrame.Plain)
         self.status_info = status_info
         self.btimer = block_timer
         self.stimer = session_timer
@@ -778,3 +753,24 @@ class StatusPanel(QFrame):
 
     def set_active(self, active):
         self.state_indicator.set_active(active)
+
+
+class LogPanel(QFrame):
+    def __init__(self, ipath, log_label, session):
+        super().__init__()
+        self.setFrameStyle(QFrame.Panel | QFrame.Plain)
+        self.ipath = ipath
+        self.session = session
+        self.logbox = self.init_logger()
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(log_label, Qt.AlignTop | Qt.AlignLeft)
+        self.logbox.mount(layout)
+        layout.setStretchFactor(log_label, 1)
+        layout.setStretchFactor(self.logbox, 10)
+    
+    def init_logger(self):
+        """Pass logfile to BoardShim and set up for GUI log window"""
+        lfile = os.path.join(os.path.normpath(self.ipath + os.sep + os.pardir), "sessionlog.log")
+        self.session.activate_logger(lfile)
+        return QTextEditLogger(lfile)
