@@ -69,8 +69,10 @@ class GridFlash(QWidget):
         number of columns in grid
     """
     exit_sig = pyqtSignal()
+
     def __init__(self, frequencies: list, rows: int, cols: int):
         super().__init__()
+        self.setWindowTitle("Grid Flash Stimulus")
         layout = QGridLayout()
         self.frequencies = frequencies
         self.active = True
@@ -191,8 +193,10 @@ class RandomPrompt(QWidget):
         How long to leave the prompt on the screen
     """
     exit_sig = pyqtSignal()
+
     def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, blength: int, dur: float = 1.5):
         super().__init__()
+        self.setWindowTitle("Random Prompt Stimulus")
         self.active = False
         self.prompt = prompt
         self.ppb = ppb
