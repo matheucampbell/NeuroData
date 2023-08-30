@@ -71,6 +71,7 @@ class StimMenu(ABC, metaclass=QABCMeta):
 
 
 class GridStimMenu(QGridLayout, StimMenu):
+    """Menu that corresponds to GridFlash built-in stimulus."""
     def __init__(self):
         super().__init__(stimname="GridFlash")
         FieldTuple = namedtuple("FieldTuple", ["minfield", "maxfield", "stepfield"])
@@ -109,6 +110,7 @@ class GridStimMenu(QGridLayout, StimMenu):
 
 
 class RandomPromptMenu(QGridLayout, StimMenu):
+    """Menu that corresponds to built-in RandomPrompt stimulus script."""
     def __init__(self):
         super().__init__(stimname="RandomPrompt")
         FieldTuple = namedtuple("FieldTuple", ["pfield", "ppbfield", "dfield", "cfield"])
