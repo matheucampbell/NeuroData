@@ -117,7 +117,7 @@ class CollectionSession(Thread):
             return
 
     def save_data(self):
-        np.savetxt(os.path.join(self.sespath, self.fname), np.copy(self.data))
+        np.savetxt(os.path.join(self.sespath, self.fname), np.copy(self.data), fmt="%.9f")
         self.log_message(LogLevels.LEVEL_INFO, "[GUI]: Update saved.")
 
     def run(self):
