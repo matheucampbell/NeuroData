@@ -444,26 +444,26 @@ class CollectionWindow(PageWindow):
 
     def build_frame(self):
         """Create frames/widgets"""
-        # Top section
-        self.info_panel = QFrame(self)
-        self.info_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
+        # Info Panel
+        info_labels = QLabel("Session Info\nSubject:\nProject:\nResponse type:\nStimulus type:\n\n" +
+                             "Sampling rate:\nConfiguration:\nModel:\n\nSession Structure\nBlock Count:\n" +
+                             "Block Length:\nCycle:")
+        info_labels.setObjectName('FieldLabels')
+        info_text = QLabel()
+        self.info_panel = InfoPanel(info_labels, info_text)
 
-        self.info_labels = QLabel("Session Info\nSubject:\nProject:\nResponse type:\nStimulus type:\n\n" +
-                                  "Sampling rate:\nConfiguration:\nModel:\n\nSession Structure\nBlock Count:\n" +
-                                  "Block Length:\nCycle:")
-        self.info_labels.setObjectName('FieldLabels')
-        self.infslabel = QLabel("Session status:")
-        self.infslabel.setStyleSheet("font-weight: bold")
-        self.info_text = QLabel()
-        self.info_status = QLabel()
-
-        # Bottom Left Panel
-        self.status_panel = QFrame(self)
-        self.status_panel.setFrameStyle(QFrame.Panel | QFrame.Plain)
-        self.status_label = QLabel("Active")
-        self.status_info = QLabel()
-        self.timer_label = QLabel("00:00")
-        self.stimer_label = QLabel("00:00")
+        # Status Panel
+        status_label = QLabel("Active")
+        status_info = QLabel()
+        timer_label = QLabel("00:00")
+        stimer_label = QLabel("00:00")
+        infslabel = QLabel("Session status:")
+        infslabel.setStyleSheet("font-weight: bold")
+        block_status = QLabel()
+        self.state_indicator = StateIndicator("#04d481", "black")
+        self.status_panel = StatusPanel(status_label, status_info, block_status, 
+                                        timer_label, stimer_label, 
+                                        self.state_indicator, infslabel)
 
         # Buttons and top level widgets
         self.entry_button = QPushButton("Mark Event")
@@ -472,7 +472,6 @@ class CollectionWindow(PageWindow):
         self.entry_annotation = QLineEdit(self)
         self.entry_annotation.setPlaceholderText("t0")
         self.entry_annotation.returnPressed.connect(self.on_enter_annotation)
-        self.state_indicator = StateIndicator("#04d481", "black")
         self.start_button = QPushButton("Start")
         self.start_button.clicked.connect(self.start_session)
         self.start_button.setDisabled(True)
@@ -494,27 +493,19 @@ class CollectionWindow(PageWindow):
         gridlayout.setColumnStretch(0, 1)
         gridlayout.setColumnStretch(1, 2)
         gridlayout.setRowStretch(2, 1)
-
-        infolayout = QHBoxLayout()
-        leftlayout = QVBoxLayout()
-        leftlayout.addWidget(self.info_labels, alignment=Qt.AlignTop | Qt.AlignLeft)
-        infolayout.addLayout(leftlayout)
-        rightlayout = QVBoxLayout()
-        rightlayout.addWidget(self.info_text, alignment=Qt.AlignTop | Qt.AlignLeft)
-        infolayout.addLayout(rightlayout)
-        self.info_panel.setLayout(infolayout)
+        
         gridlayout.addWidget(self.info_panel, 0, 0, 2, 1)
 
-        statuslayout = QGridLayout(self.status_panel)
-        statuslayout.setRowStretch(2, 1)
-        statuslayout.setColumnStretch(2, 1)
-        statuslayout.addWidget(self.state_indicator, 0, 0)
-        statuslayout.addWidget(self.status_label, 0, 1)
-        statuslayout.addWidget(self.status_info, 1, 0, 2, 2, Qt.AlignTop | Qt.AlignLeft)
-        statuslayout.addWidget(self.timer_label, 1, 2, Qt.AlignTop | Qt.AlignRight)
-        statuslayout.addWidget(self.stimer_label, 0, 2, Qt.AlignTop | Qt.AlignRight)
-        statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
-        statuslayout.addWidget(self.info_status, 2, 2, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
+        # statuslayout = QGridLayout(self.status_panel)
+        # statuslayout.setRowStretch(2, 1)
+        # statuslayout.setColumnStretch(2, 1)
+        # statuslayout.addWidget(self.state_indicator, 0, 0)
+        # statuslayout.addWidget(self.status_label, 0, 1)
+        # statuslayout.addWidget(self.status_info, 1, 0, 2, 2, Qt.AlignTop | Qt.AlignLeft)
+        # statuslayout.addWidget(self.timer_label, 1, 2, Qt.AlignTop | Qt.AlignRight)
+        # statuslayout.addWidget(self.stimer_label, 0, 2, Qt.AlignTop | Qt.AlignRight)
+        # statuslayout.addWidget(self.infslabel, 2, 0, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
+        # statuslayout.addWidget(self.info_status, 2, 2, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
         gridlayout.addWidget(self.status_panel, 0, 1)
 
         buttonlayout = QGridLayout()
@@ -540,8 +531,8 @@ class CollectionWindow(PageWindow):
         self.update_status()
         self.set_start_mode('Start', True)
         self.logbox.clear()
-        self.timer_label.setText("00:00")
-        self.stimer_label.setText("00:00")
+        self.status_panel.set_block_time("00:00")
+        self.status_panel.set_session_time("00:00")
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
         self.csession.start()
@@ -557,22 +548,22 @@ class CollectionWindow(PageWindow):
         i = 0
         while not (ready := self.ready_flag.is_set()) and not self.error_flag.is_set() and not self.stop_event.is_set():
             infostat = "Preparing" + "." * i
-            self.set_info_status(infostat)
+            self.status_panel.set_session_status(infostat)
             i = (i+1) % 4
             sleep(0.5)
         if ready:
-            self.set_info_status("Ready")
+            self.status_panel.set_session_status("Ready")
             self.start_button.setDisabled(False)
         elif self.error_flag.is_set():
             infostat = self.csession.get_error()
-            self.set_info_status(infostat, error=True)
+            self.status_panel.set_session_status(infostat, error=True)
 
     def show_ongoing(self):
         """Show collecting status"""
         i = 0
         while not self.stop_event.is_set() and not self.error_flag.is_set():
             infostat = "Collecting" + "." * i
-            self.set_info_status(infostat)
+            self.status_panel.set_session_status(infostat)
             i = (i+1) % 4
             sleep(0.5)
 
@@ -607,38 +598,38 @@ class CollectionWindow(PageWindow):
         cdetails = '\n'.join(['\n'+str(self.bcount), str(self.blength)+'s', self.stimcycle])
         itext = '\n' + sub + proj + resp + stype + srate + config + model + '\n' + cdetails
 
-        self.info_text.setText(itext)
+        self.info_panel.set_text(itext)
 
-    def set_info_status(self, status, error=False):
-        if error:
-            self.info_status.setStyleSheet("color: #c20808")
-        else:
-            self.info_status.setStyleSheet("color: #c5cfde")
-        self.info_status.setText(status[:25])
+    # def set_info_status(self, status, error=False):
+    #     if error:
+    #         self.info_status.setStyleSheet("color: #c20808")
+    #     else:
+    #         self.info_status.setStyleSheet("color: #c5cfde")
+    #     self.info_status.setText(status[:25])
 
     def update_status(self):
         if 1 <= self.current_block < len(self.stimcycle):  # Session in progress and not last block
             next_active = self.stimcycle[self.current_block] == '1'
             next = "Active" if next_active else "Inactive"
-            self.status_info.setText(f"Block: {self.current_block}/{self.bcount}\nNext: {next}")
+            self.status_panel.set_block_info(f"Block: {self.current_block}/{self.bcount}\nNext: {next}")
         elif self.current_block == self.bcount:  # Session in progress on last block
-            self.status_info.setText(f"Block: {self.current_block}/{self.bcount}\nNext: None")
+            self.status_panel.set_block_info(f"Block: {self.current_block}/{self.bcount}\nNext: None")
         elif self.current_block == 0:  # Initial state before starting session
             next_active = self.stimcycle[self.current_block] == '1'
             next = "Active" if next_active else "Inactive"
-            self.status_info.setText(f"Block: {self.current_block}/{self.bcount}\nNext: {next}")
+            self.status_panel.set_block_info(f"Block: {self.current_block}/{self.bcount}\nNext: {next}")
             return
         else:  # Negative current block or current block > bcount. Should never happen.
             return
 
         if self.stimcycle[self.current_block-1] == '1' and not self.state_indicator.is_active():
-            self.state_indicator.set_active(True)
+            self.status_panel.set_active(True)
         elif self.stimcycle[self.current_block-1] == '0' and self.state_indicator.is_active():
-            self.state_indicator.set_active(False)
+            self.status_panel.set_active(False)
 
     def update_timer(self):
         if self.error_flag.is_set():
-            self.set_info_status(self.csession.get_error(), error=True)
+            self.status_panel.set_session_status(self.csession.get_error(), error=True)
             self.stop_session()
             return
 
@@ -646,8 +637,8 @@ class CollectionWindow(PageWindow):
         elapsed_seconds = int(elapsed_time.total_seconds())
         remaining_seconds = max(0, self.blength - (elapsed_seconds % self.blength))
         formatted_time = QTime(0, 0).addSecs(remaining_seconds).toString("mm:ss")
-        self.timer_label.setText(formatted_time)
-        self.stimer_label.setText(QTime(0, 0).addSecs(elapsed_seconds).toString("mm:ss"))
+        self.status_panel.set_block_time(formatted_time)
+        self.status_panel.set_session_time(QTime(0, 0).addSecs(elapsed_seconds).toString("mm:ss"))
 
         self.update_status()
         self.update_block(elapsed_time)
@@ -657,7 +648,7 @@ class CollectionWindow(PageWindow):
         if self.current_block > self.bcount:
             self.session_status = "Complete"
             self.current_block = self.bcount
-            self.timer_label.setText("00:00")
+            self.status_panel.set_block_time("00:00")
             self.pause_stream()  # Change to pause_stream
 
     def start_session(self):
@@ -699,9 +690,9 @@ class CollectionWindow(PageWindow):
         self.entry_button.setDisabled(True)
         if not self.error_flag.is_set():
             self.set_start_mode('New Session')
-            self.set_info_status("Complete", error=False)
+            self.status_panel.set_session_status("Complete", error=False)
         else:
-            self.set_info_status(self.csession.get_error(), error=True)
+            self.status_panel.set_session_status(self.csession.get_error(), error=True)
         if self.stim:
             self.stim.close()
     
@@ -716,12 +707,74 @@ class CollectionWindow(PageWindow):
         self.stop_button.setDisabled(True)
         self.entry_button.setDisabled(True)
         if self.error_flag.is_set():
-            self.set_info_status(self.csession.get_error(), error=True)
+            self.status_panel.set_session_status(self.csession.get_error(), error=True)
         else:
-            self.set_info_status("Complete", error=False)
+            self.status_panel.set_session_status("Complete", error=False)
         if self.stim:
             self.stim.close()
 
     def tlabel(self):
         self.t += 1
         return f"t{self.t}"
+
+
+class InfoPanel(QFrame):
+    def __init__(self, info_labels, info_text):
+        super().__init__()
+        self.setFrameStyle(QFrame.Panel | QFrame.Plain)
+
+        self.info_text = info_text
+
+        layout = QHBoxLayout(self)
+        leftlayout = QVBoxLayout()
+        rightlayout = QVBoxLayout()
+        leftlayout.addWidget(info_labels, alignment=Qt.AlignTop | Qt.AlignLeft)
+        rightlayout.addWidget(info_text, alignment=Qt.AlignTop | Qt.AlignLeft)
+        layout.addLayout(leftlayout)
+        layout.addLayout(rightlayout)
+
+    def set_text(self, text):
+        self.info_text.setText(text)
+
+
+class StatusPanel(QFrame):
+    def __init__(self, status_label, status_info, block_status, 
+                 block_timer, session_timer, state_indicator, infslabel):
+        super().__init__()
+        self.status_info = status_info
+        self.btimer = block_timer
+        self.stimer = session_timer
+        self.state_indicator = state_indicator
+        self.block_status = block_status
+
+        layout = QGridLayout(self)
+        layout.setRowStretch(2, 1)
+        layout.setColumnStretch(2, 1)
+        layout.addWidget(state_indicator, 0, 0)
+        layout.addWidget(status_label, 0, 1)
+        layout.addWidget(block_status, 1, 0, 2, 2, Qt.AlignTop | Qt.AlignLeft)
+        layout.addWidget(block_timer, 1, 2, Qt.AlignTop | Qt.AlignRight)
+        layout.addWidget(session_timer, 0, 2, Qt.AlignTop | Qt.AlignRight)
+        layout.addWidget(infslabel, 2, 0, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
+        layout.addWidget(status_info, 2, 2, 1, 2, Qt.AlignBottom | Qt.AlignLeft)
+    
+    def set_session_status(self, status, error=False):
+        """Set label next to Session Status"""
+        if error:
+            self.status_info.setStyleSheet("color: #c20808")
+        else:
+            self.status_info.setStyleSheet("color: #c5cfde")
+        self.status_info.setText(status[:25])
+    
+    def set_block_info(self, status):
+        """Set block number and next block state"""
+        self.block_status.setText(status)
+    
+    def set_block_time(self, time_string):
+        self.btimer.setText(time_string)
+    
+    def set_session_time(self, time_string):
+        self.stimer.setText(time_string)
+
+    def set_active(self, active):
+        self.state_indicator.set_active(active)
