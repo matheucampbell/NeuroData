@@ -48,7 +48,6 @@ class StimMenu(ABC, metaclass=QABCMeta):
         self.setColumnStretch(0, 2)
 
     def populate(self):
-        self.setSpacing(5)
         for row, label in enumerate(self.labels):
             label.setObjectName("MenuLabel")
             self.addWidget(label, row, 0, Qt.AlignRight)
@@ -110,7 +109,7 @@ class GridStimMenu(QGridLayout, StimMenu):
 
 
 class RandomPromptMenu(QGridLayout, StimMenu):
-    """Menu that corresponds to built-in RandomPrompt stimulus script."""
+    """Menu that corresponds to built-in RandomPrompt built-in stimulus."""
     def __init__(self):
         super().__init__(stimname="RandomPrompt")
         FieldTuple = namedtuple("FieldTuple", ["pfield", "ppbfield", "dfield", "cfield"])
