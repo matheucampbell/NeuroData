@@ -1,6 +1,7 @@
 """Widget-derived custom classes and style sheet"""
 import math
 
+from abc import ABC, ABCMeta, abstractmethod
 from numpy import linspace
 from PyQt5.QtCore import Qt, QFileSystemWatcher
 from PyQt5.QtGui import QIntValidator, QDoubleValidator
@@ -32,12 +33,32 @@ class StateIndicator(QFrame):
         return self.on
 
 
-class GridStimMenu(QGridLayout):
-    def __init__(self):
-        super().__init__()
-        self.stimname = "GridFlash"
+class QABCMeta(ABCMeta, type(QGridLayout)):
+    """Metaclass to combine ABC and QGridLayout"""
+
+
+class StimMenu(ABC, metaclass=QABCMeta):
+    def __init__(self, stimname):
+        self.stimname = stimname
         self.setSpacing(5)
         self.setColumnStretch(0, 2)
+
+    @abstractmethod
+    def clear(self):
+        """Clear all menu elements and set parent of self to None"""
+
+    @abstractmethod
+    def validate(self, window=None):
+        """Return (bool, str) that indicates whether values in menu fields are valid for the corresponding script"""
+
+    @abstractmethod
+    def get_args(self):
+        """Return list of args to be passed to the corresponding stimulus script"""
+
+
+class GridStimMenu(QGridLayout, StimMenu):
+    def __init__(self):
+        super().__init__(stimname="GridFlash")
 
         self.minfield = QLineEdit()
         self.minfield.setValidator(QIntValidator(1, 10000))
@@ -86,13 +107,10 @@ class GridStimMenu(QGridLayout):
         return linspace(min, max, steps), rows, cols
 
 
-class RandomPromptMenu(QGridLayout):
+class RandomPromptMenu(QGridLayout, StimMenu):
     def __init__(self):
-        super().__init__()
-        self.stimname = "RandomPrompt"
+        super().__init__(stimname="RandomPrompt")
         self.iwindow = None
-        self.setSpacing(5)
-        self.setColumnStretch(0, 2)
 
         self.pfield = QLineEdit()  # Prompt field
         self.ppbfield = QLineEdit()  # Prompts per block field
