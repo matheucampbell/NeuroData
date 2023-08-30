@@ -395,7 +395,7 @@ class InfoWindow(PageWindow):
 
 
 class CollectionWindow(PageWindow):
-    """Displays session controls and real time information (timers, logs, activate state)"""
+    """Displays session controls and real time information (timers, logs, active state)"""
     def __init__(self):
         super().__init__()
         self.setObjectName("FullFrame")
@@ -540,6 +540,8 @@ class CollectionWindow(PageWindow):
         self.update_status()
         self.set_start_mode('Start', True)
         self.logbox.clear()
+        self.timer_label.setText("00:00")
+        self.stimer_label.setText("00:00")
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
         self.csession.start()
