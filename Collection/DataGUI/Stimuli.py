@@ -1,6 +1,8 @@
 """Built-in Stimuli Classes"""
 import random
 import time
+import simplejson as json
+import os
 
 from PyQt5.QtWidgets import (QWidget, QGridLayout, QVBoxLayout, QOpenGLWidget)
 from PyQt5.QtCore import QThread, Qt, QRectF, pyqtSignal
@@ -71,6 +73,7 @@ class GridFlash(QWidget):
     def __init__(self, frequencies: list, rows: int, cols: int):
         super().__init__()
         layout = QGridLayout()
+        self.frequencies = frequencies
         self.active = True
         self.setLayout(layout)
         self.setMinimumSize(650, 650)
@@ -97,7 +100,15 @@ class GridFlash(QWidget):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
-        
+    
+    def add_info(self, infopath):
+        with open(infopath, 'r+') as i:
+            info = json.loads(i.read())
+            info['Description'] += f"\n\nGrid Flash Frequencies: {[round(f, 2) for f in self.frequencies]}"
+            i.seek(0)
+            json.dump(info, i, indent=4, ensure_ascii=True)
+            i.truncate()
+
     def closeEvent(self, event):
         self.exit_sig.emit()
 
@@ -175,13 +186,13 @@ class RandomPrompt(QWidget):
         Minimum time between prompts in seconds   
     stimcycle: str
         Stimulus cycle for the session
-    dur: float
-        How long to leave the prompt on the screen
     blength: int
         The length of one block
+    dur: float
+        How long to leave the prompt on the screen
     """
     exit_sig = pyqtSignal()
-    def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, blength: int, dur=1.5):
+    def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, blength: int, dur: float = 1.5):
         super().__init__()
         self.active = False
         self.prompt = prompt
@@ -189,7 +200,8 @@ class RandomPrompt(QWidget):
         self.cd = cooldown 
         self.stimcycle = stimcycle 
         self.blength = blength
-        self.dur = dur 
+        self.dur = dur
+        self.times = self.gen_times()
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -246,9 +258,16 @@ class RandomPrompt(QWidget):
 
     def start(self):
         self.active = True
-        times = self.gen_times()
-        box = PromptBox(self.prompt, times, self.dur, time.time())
+        box = PromptBox(self.prompt, self.times, self.dur, time.time())
         self.layout.addWidget(box)
     
+    def add_info(self, infopath):
+        with open(infopath, 'r+') as i:
+            info = json.loads(i.read())
+            info['Description'] += f"\n\nRandom Prompt Times: {[round(t, 2) for t in self.times]}\nPrompt Text: {self.prompt}"
+            i.seek(0)
+            json.dump(info, i, indent=4, ensure_ascii=True)
+            i.truncate()
+
     def closeEvent(self, event):
         self.exit_sig.emit()

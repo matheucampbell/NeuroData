@@ -288,7 +288,11 @@ class InfoWindow(PageWindow):
             session = BoardlessBridge.CollectionSession(self.board, self.sespath, int(self.fbuffsize.text()))
         else:
             session = BoardBridge.CollectionSession(self.board, self.sespath, int(self.fbuffsize.text()))
-        self.colwin.init_session(os.path.join(self.sespath, "info.json"), session, new, stim=self.stimscript)
+
+        ipath = os.path.join(self.sespath, "info.json")
+        if self.stimscript:
+            self.stimscript.add_info(ipath)
+        self.colwin.init_session(ipath, session, new, stim=self.stimscript)
         self.goto("collect")
 
     def check_info(self):

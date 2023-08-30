@@ -139,6 +139,7 @@ class RandomPromptMenu(QGridLayout):
         cooldown = float(self.cfield.text())
         if ppb * cooldown > int(iwindow.fblength.text()):
             return False, "Too many prompts for one block."
+
         return True, ""
     
     def get_args(self):
