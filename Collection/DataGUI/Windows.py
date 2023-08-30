@@ -1,7 +1,6 @@
 import BoardBridge
 import BoardlessBridge
 
-from collections import namedtuple
 from brainflow import BrainFlowInputParams, BrainFlowError, LogLevels
 from brainflow.board_shim import BoardShim
 from datetime import datetime
