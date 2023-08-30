@@ -24,9 +24,9 @@ options:
   -m HEADSET_MODEL, --headset-model HEADSET_MODEL
                         Headset model (CytonDaisy|Cyton)
   -b BEFORE_DATE, --before-date BEFORE_DATE
-                        include data collected before this date (MM-DD-YYYY) (inclusive); defaults to now
+                        only include data collected before this date (MM-DD-YYYY) (inclusive); defaults to now
   -a AFTER_DATE, --after-date AFTER_DATE
-                        include data collected after this date (MM-DD-YYYY) (inclusive); defaults to 10 years ago
+                        only include data collected after this date (MM-DD-YYYY) (inclusive); defaults to 10 years ago
 ```
 
 **Before using this script or the upload_session script, ensure you have exported your Redivis API token in your terminal.**
