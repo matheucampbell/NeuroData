@@ -89,7 +89,7 @@ class InfoWindow(PageWindow):
                'RandomPrompt': RandomPrompt}
     buffsize_d = 100000
     buffsize_max = 450000
-    buffsize_min = 1000
+    buffsize_min = 3000
     blengthmax = 3600
     bcountmax = 360
 
