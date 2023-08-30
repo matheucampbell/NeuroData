@@ -98,7 +98,7 @@ class RandomPromptMenu(QGridLayout):
         self.ppbfield = QLineEdit()
         self.ppbfield.setValidator(QIntValidator(1, 1000))
         self.cfield = QLineEdit()
-        self.cfield.setValidator(QDoubleValidator(0.00, 10000, 2))
+        self.cfield.setValidator(QDoubleValidator(1.50, 10000, 2))
 
         self.plabel = QLabel("Prompt text:")
         self.ppblabel = QLabel("Prompts per block:")
@@ -143,7 +143,7 @@ class RandomPromptMenu(QGridLayout):
     
     def get_args(self):
         return (self.pfield.text().strip(), int(self.ppbfield.text()), float(self.cfield.text()), 
-                self.iwindow.fstimcycle.text().strip())
+                self.iwindow.fstimcycle.text().strip(), int(self.iwindow.fblength.text()))
 
 
 class QTextEditLogger(QPlainTextEdit):

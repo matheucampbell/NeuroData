@@ -1,4 +1,7 @@
 """Built-in Stimuli Classes"""
+import random
+import time
+
 from PyQt5.QtWidgets import (QWidget, QGridLayout, QVBoxLayout, QOpenGLWidget)
 from PyQt5.QtCore import QThread, Qt, QRect, pyqtSignal
 from PyQt5.QtGui import QColor, QPainter, QBrush, QFont, QSurfaceFormat
@@ -102,33 +105,32 @@ class GridFlash(QWidget):
 class ToggleThread(QThread):
     flash_signal = pyqtSignal()
 
-    def __init__(self, times, dur):
+    def __init__(self, times, dur, start_time):
         super().__init__()
         self.times = times
         self.dur = dur
         self.is_running = True
+        self.start_time = start_time
 
     def run(self):
-        while self.is_running and self.times:
-            wdur = self.times[0]
-            self.msleep(int(1000 * wdur))
-            self.flash_signal.emit()
-            self.msleep(int(1000 * self.dur))
-            self.flash_signal.emit()
-            if len(self.times) > 1:
-                self.times[1] -= self.times[0] + self.dur
-                self.times = self.times[1:]
+        while self.is_running:
+            for t in self.times:
+                while time.time() < self.start_time + t:
+                    self.msleep(100)
+                self.flash_signal.emit()
+                self.msleep(int(1000 * self.dur))
+                self.flash_signal.emit()
 
     def stop(self):
         self.is_running = False
 
 
 class PromptBox(QOpenGLWidget):
-    def __init__(self, text, times, dur,):
+    def __init__(self, text, times, dur, stime):
         super().__init__()
         self.text = text
         self.flash_state = False
-        self.toggle_thread = ToggleThread(times, dur)
+        self.toggle_thread = ToggleThread(times, dur, stime)
         self.toggle_thread.flash_signal.connect(self.toggle_flash)
         self.toggle_thread.start()
         w, h = 250, 100
@@ -174,15 +176,18 @@ class RandomPrompt(QWidget):
         Stimulus cycle for the session
     dur: float
         How long to leave the prompt on the screen
+    blength: int
+        The length of one block
     """
     exit_sig = pyqtSignal()
-    def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, dur=1.5):
+    def __init__(self, prompt: str, ppb: int, cooldown: int, stimcycle: str, blength: int, dur=1.5):
         super().__init__()
         self.active = False
         self.prompt = prompt
         self.ppb = ppb
-        self.cooldown = cooldown 
+        self.cd = cooldown 
         self.stimcycle = stimcycle 
+        self.blength = blength
         self.dur = dur 
 
         self.layout = QVBoxLayout()
@@ -200,15 +205,50 @@ class RandomPrompt(QWidget):
         fmt.setRenderableType(QSurfaceFormat.OpenGL)
         QSurfaceFormat.setDefaultFormat(fmt)
 
+    def gen_times(self):
+        res = 0.1
+        domain = range(0, int(self.blength/res))
+        offsets = []
+        times = []
+
+        for num, char in enumerate(self.stimcycle):
+            if char == '1':
+                offsets.append(num)
+
+        for off in offsets:
+            btimes = []
+            blocked = set()
+            pcount = 0
+            while pcount < self.ppb:
+                while (new := random.choice(domain)) in blocked:
+                    pass
+
+                bufmin, bufmax = max(0, new-self.cd/res), min(len(domain)/res, new+self.cd/res)
+                consumed = range(int(bufmin), int(bufmax))
+                for t in consumed:
+                    blocked.add(t)
+                
+                if len(blocked) == len(domain):
+                    pcount = 0
+                    blocked = set()
+                else:
+                    btimes.append(new*res + off*self.blength)
+                    pcount += 1
+
+            times += btimes
+        
+        return sorted(times)
+    
     def show(self):
         self.start()
         super().show()
 
     def start(self):
         self.active = True
-        box = PromptBox(self.prompt, [2, 4, 6, 8, 10], self.dur)
+        times = self.gen_times()
+        print(times)
+        box = PromptBox(self.prompt, times, self.dur, time.time())
         self.layout.addWidget(box)
     
     def closeEvent(self, event):
         self.exit_sig.emit()
-
