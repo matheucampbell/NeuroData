@@ -32,9 +32,9 @@ Data collection is at best a long and boring process, so here's a guide to minim
 
 ### Collection
 1. When you're satisfied that your electrodes are properly aligned, close the OpenBCI GUI. Open the DataGUI from this repo, and fill out the form with your session details.
-    - If using DataGUI.py (not one of its binaries), create a conda environment from the environment.yml file at the top level of this repo. If you don't have conda/don't want to install it, just install
-      the modules imported by DataGUI.py to whichever local environment you're using. Python 3.7+ is required.
-    - No Python environment required to run DataGUI.exe
+    - If running the DataGUI in Python (not using one of the binaries in the release section), create a conda environment from the environment.yml file at the top level of this repo. If you don't have conda/don't want to install it, just install
+      the modules imported by DataGUI.py to whichever local environment you're using. Python 3.7+ is required. When you've ensured you're in the correct environment, just run main.py.
+    - No Python environment required to run DataGUI.exe, but it's a very large file and may take some time to open (> 30 seconds). Don't give up if it seems to be taking long.
 2. Prepare a stimulus script if you have one, and position the subject for collection.
 3. When ready, press the confirm button of the DataGUI, start your stimulus script, and guide the subject as necessary during collection.
 4. When finished, press stop (or allow time to elapse) in the DataGUI. Your session directory will be created with an info.json file, sessionlog.log file, and data.csv file.
