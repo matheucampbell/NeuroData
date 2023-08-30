@@ -250,8 +250,9 @@ class InfoWindow(PageWindow):
         self.fblength.clear()
         self.fstimcycle.clear()
         self.fdescription.clear()
-        self.fstimscript.setCurrentText("Grid Flash")
         self.fstimscript.setCurrentText("External")
+        if menu := self.hardlayout.itemAtPosition(6, 0):
+            menu.clear()
 
         self.date = datetime.now().strftime("%m-%d-%y")
         self.time = datetime.now().strftime("%H:%M")
@@ -382,13 +383,12 @@ class InfoWindow(PageWindow):
 
     @pyqtSlot(str)
     def stim_config(self, new):
+        if menu := self.hardlayout.itemAtPosition(6, 0):
+            menu.clear()
         if new == "Grid Flash":
             self.hardlayout.addLayout(GridStimMenu(), 6, 0, 1, 2)
         elif new == "Random Prompting":
             self.hardlayout.addLayout(RandomPromptMenu(), 6, 0, 1, 2)
-        else:
-            menu = self.hardlayout.itemAtPosition(6, 0)
-            menu.clear()
 
 
 class CollectionWindow(PageWindow):

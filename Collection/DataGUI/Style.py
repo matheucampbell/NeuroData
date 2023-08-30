@@ -63,9 +63,9 @@ class GridStimMenu(QGridLayout):
         self.minfield.setParent(None)
         self.maxfield.setParent(None)
         self.stepfield.setParent(None)
-        self.minlabel.clear()
-        self.maxlabel.clear()
-        self.steplabel.clear()
+        self.minlabel.setParent(None)
+        self.maxlabel.setParent(None)
+        self.steplabel.setParent(None)
         self.setParent(None)
 
     def validate(self, window=None):
@@ -99,9 +99,11 @@ class RandomPromptMenu(QGridLayout):
         self.ppbfield.setValidator(QIntValidator(1, 1000))
         self.cfield = QLineEdit()
         self.cfield.setValidator(QDoubleValidator(0.00, 10000, 2))
+
         self.plabel = QLabel("Prompt text:")
         self.ppblabel = QLabel("Prompts per block:")
         self.clabel = QLabel("Prompt cooldown:")
+
         self.plabel.setObjectName("MenuLabel")
         self.ppblabel.setObjectName("MenuLabel")
         self.clabel.setObjectName("MenuLabel")
@@ -117,9 +119,9 @@ class RandomPromptMenu(QGridLayout):
         self.pfield.setParent(None)
         self.ppbfield.setParent(None)
         self.cfield.setParent(None)
-        self.plabel.clear()
-        self.ppbfield.clear()
-        self.plabel.clear()
+        self.plabel.setParent(None)
+        self.ppblabel.setParent(None)
+        self.clabel.setParent(None)
         self.setParent(None)
 
     def validate(self, iwindow):
