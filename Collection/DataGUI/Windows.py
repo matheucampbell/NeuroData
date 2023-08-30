@@ -411,6 +411,8 @@ class CollectionWindow(PageWindow):
             CollectionSession for the current session
         new: bool
             whether or not the window has previously been laid out
+        stim: QWidget
+            stim window for a built-in stimulus script
         """
         self.csession = csession
         flags = self.csession.get_flags()
@@ -577,9 +579,9 @@ class CollectionWindow(PageWindow):
             return
 
         if self.stimcycle[self.current_block-1] == '1' and not self.state_indicator.is_active():
-            self.status_panel.set_active(True)
+            self.state_indicator.set_active(True)
         elif self.stimcycle[self.current_block-1] == '0' and self.state_indicator.is_active():
-            self.status_panel.set_active(False)
+            self.state_indicator.set_active(False)
 
     def update_timer(self):
         if self.error_flag.is_set():
