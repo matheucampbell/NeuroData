@@ -1,7 +1,7 @@
 """Classes that integrate Brainflow functionality into the GUI"""
 from brainflow import LogLevels, BrainFlowError
 from brainflow.board_shim import BoardShim
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from time import sleep
 
 import numpy as np
@@ -34,6 +34,7 @@ class CollectionSession(Thread):
 
     def __init__(self, boardshim: BoardShim, sespath, buffsize):
         super().__init__(name="CollectionThread")
+        self.lock = Lock()
         self.board = boardshim
         self.buffsize = buffsize
         self.sespath = sespath
@@ -54,7 +55,8 @@ class CollectionSession(Thread):
 
     def log_message(self, level, message):
         """Log custom message"""
-        self.board.log_message(level, message)
+        with self.lock:
+            self.board.log_message(level, message)
 
     def prepare(self):
         """Prepare board for collection. Sets error flag upon failure, ready flag on success."""
