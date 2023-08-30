@@ -450,7 +450,7 @@ class CollectionWindow(PageWindow):
                              "Block Length:\nCycle:")
         info_labels.setObjectName('FieldLabels')
         info_text = QLabel()
-        self.info_panel = InfoPanel(info_labels, info_text)
+        self.info_panel = InfoPanel(self.info, info_labels, info_text)
 
         # Status Panel
         status_label = QLabel("Active")
@@ -508,7 +508,7 @@ class CollectionWindow(PageWindow):
 
     def activate(self):
         """Set starting fields and begin session"""
-        self.set_info()
+        self.info_panel.set_info()
         self.update_status()
         self.set_start_mode('Start', True)
         self.log_panel.logbox.clear()
@@ -517,12 +517,6 @@ class CollectionWindow(PageWindow):
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
         self.csession.start()
-
-    def init_logger(self):
-        """Pass logfile to BoardShim and set up for GUI log window"""
-        lfile = os.path.join(os.path.normpath(self.infopath + os.sep + os.pardir), "sessionlog.log")
-        self.csession.activate_logger(lfile)
-        return QTextEditLogger(lfile)
 
     def wait_for_ready(self):
         """Show preparation status"""
@@ -566,20 +560,6 @@ class CollectionWindow(PageWindow):
         self.add_annotation(timestamp, annotation)
         self.entry_annotation.clear()
         self.entry_annotation.setPlaceholderText(self.tlabel())
-
-    def set_info(self):
-        sub = self.info['SessionParams'].get('SubjectName', '--') + '\n'
-        proj = self.info['SessionParams'].get('ProjectName', '--') + '\n'
-        resp = self.info['SessionParams'].get('ResponseType', '--') + '\n'
-        stype = self.info['SessionParams'].get('StimulusType', '--') + '\n\n'
-        srate = self.info['HardwareParams'].get('SampleRate', '--') + '\n'
-        config = self.info['HardwareParams'].get('HeadsetConfiguration', '--') + '\n'
-        model = self.info['HardwareParams'].get('HeadsetModel', '--') + '\n'
-
-        cdetails = '\n'.join(['\n'+str(self.bcount), str(self.blength)+'s', self.stimcycle])
-        itext = '\n' + sub + proj + resp + stype + srate + config + model + '\n' + cdetails
-
-        self.info_panel.set_text(itext)
 
     def update_status(self):
         if 1 <= self.current_block < len(self.stimcycle):  # Session in progress and not last block
@@ -693,10 +673,11 @@ class CollectionWindow(PageWindow):
 
 
 class InfoPanel(QFrame):
-    def __init__(self, info_labels, info_text):
+    def __init__(self, info, info_labels, info_text):
         super().__init__()
         self.setFrameStyle(QFrame.Panel | QFrame.Plain)
 
+        self.info = info
         self.info_text = info_text
 
         layout = QHBoxLayout(self)
@@ -707,8 +688,23 @@ class InfoPanel(QFrame):
         layout.addLayout(leftlayout)
         layout.addLayout(rightlayout)
 
-    def set_text(self, text):
-        self.info_text.setText(text)
+    def set_info(self):
+        sub = self.info['SessionParams'].get('SubjectName', '--') + '\n'
+        proj = self.info['SessionParams'].get('ProjectName', '--') + '\n'
+        resp = self.info['SessionParams'].get('ResponseType', '--') + '\n'
+        stype = self.info['SessionParams'].get('StimulusType', '--') + '\n\n'
+        srate = self.info['HardwareParams'].get('SampleRate', '--') + '\n'
+        config = self.info['HardwareParams'].get('HeadsetConfiguration', '--') + '\n'
+        model = self.info['HardwareParams'].get('HeadsetModel', '--') + '\n'
+
+        bcount = self.info['SessionParams']['BlockCount']
+        blength = self.info['SessionParams']['BlockLength']
+        stimcycle = self.info['SessionParams']['StimCycle']
+
+        cdetails = '\n'.join(['\n' + bcount, blength + 's', stimcycle])
+        itext = '\n' + sub + proj + resp + stype + srate + config + model + '\n' + cdetails
+
+        self.info_text.setText(itext)
 
 
 class StatusPanel(QFrame):
