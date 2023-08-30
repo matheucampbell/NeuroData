@@ -52,12 +52,12 @@ class GridStimMenu(QGridLayout):
         self.maxlabel.setObjectName("MenuLabel")
         self.steplabel.setObjectName("MenuLabel")
 
-        self.addWidget(self.minlabel, 6, 0, Qt.AlignRight)
-        self.addWidget(self.maxlabel, 7, 0, Qt.AlignRight)
-        self.addWidget(self.steplabel, 8, 0, Qt.AlignRight)
-        self.addWidget(self.minfield, 6, 1)
-        self.addWidget(self.maxfield, 7, 1)
-        self.addWidget(self.stepfield, 8, 1)
+        self.addWidget(self.minlabel, 0, 0, Qt.AlignRight)
+        self.addWidget(self.maxlabel, 1, 0, Qt.AlignRight)
+        self.addWidget(self.steplabel, 2, 0, Qt.AlignRight)
+        self.addWidget(self.minfield, 0, 1)
+        self.addWidget(self.maxfield, 1, 1)
+        self.addWidget(self.stepfield, 2, 1)
     
     def clear(self):
         self.minfield.setParent(None)
@@ -94,34 +94,43 @@ class RandomPromptMenu(QGridLayout):
         self.setSpacing(5)
         self.setColumnStretch(0, 2)
 
-        self.pfield = QLineEdit()
-        self.ppbfield = QLineEdit()
+        self.pfield = QLineEdit()  # Prompt field
+        self.ppbfield = QLineEdit()  # Prompts per block field
         self.ppbfield.setValidator(QIntValidator(1, 1000))
-        self.cfield = QLineEdit()
-        self.cfield.setValidator(QDoubleValidator(1.50, 10000, 2))
+        self.dfield = QLineEdit()  # Prompt duration field
+        self.dfield.setPlaceholderText("1")
+        self.dfield.setValidator(QDoubleValidator(0.25, 1000, 2))
+        self.cfield = QLineEdit()  # Prompt cooldown field
+        self.cfield.setValidator(QDoubleValidator(0.25, 10000, 2))
 
         self.plabel = QLabel("Prompt text:")
         self.ppblabel = QLabel("Prompts per block:")
         self.clabel = QLabel("Prompt cooldown:")
+        self.dlabel = QLabel("Prompt duration:")
 
         self.plabel.setObjectName("MenuLabel")
         self.ppblabel.setObjectName("MenuLabel")
+        self.dlabel.setObjectName("MenuLabel")
         self.clabel.setObjectName("MenuLabel")
 
-        self.addWidget(self.plabel, 6, 0, Qt.AlignRight)
-        self.addWidget(self.ppblabel, 7, 0, Qt.AlignRight)
-        self.addWidget(self.clabel, 8, 0, Qt.AlignRight)
-        self.addWidget(self.pfield, 6, 1)
-        self.addWidget(self.ppbfield, 7, 1)
-        self.addWidget(self.cfield, 8, 1)
+        self.addWidget(self.plabel, 0, 0, Qt.AlignRight)
+        self.addWidget(self.ppblabel, 1, 0, Qt.AlignRight)
+        self.addWidget(self.clabel, 2, 0, Qt.AlignRight)
+        self.addWidget(self.dlabel, 3, 0, Qt.AlignRight)
+        self.addWidget(self.pfield, 0, 1)
+        self.addWidget(self.ppbfield, 1, 1)
+        self.addWidget(self.cfield, 2, 1)
+        self.addWidget(self.dfield, 3, 1)
 
     def clear(self):
         self.pfield.setParent(None)
         self.ppbfield.setParent(None)
         self.cfield.setParent(None)
+        self.dfield.setParent(None)
         self.plabel.setParent(None)
         self.ppblabel.setParent(None)
         self.clabel.setParent(None)
+        self.dlabel.setParent(None)
         self.setParent(None)
 
     def validate(self, iwindow):
@@ -134,17 +143,27 @@ class RandomPromptMenu(QGridLayout):
             return False, "Prompts per block not supplied."
         if not self.cfield.text().strip():
             return False, "No cooldown supplied."
+        if not self.dfield.text().strip():
+            return False, "No duration supplied."
         
         ppb = int(self.ppbfield.text())
         cooldown = float(self.cfield.text())
-        if ppb * cooldown > int(iwindow.fblength.text()):
+        dur = float(self.dfield.text())
+        if cooldown < dur:
+            return False, "Duration must be shorter than cooldown."
+
+        prompt_time = ppb * cooldown
+        total_time = int(self.iwindow.fblength.text())
+        if prompt_time/total_time > 0.75:
             return False, "Too many prompts for one block."
 
         return True, ""
     
     def get_args(self):
+        if not self.iwindow:
+            raise Exception("Args not yet validated.")
         return (self.pfield.text().strip(), int(self.ppbfield.text()), float(self.cfield.text()), 
-                self.iwindow.fstimcycle.text().strip(), int(self.iwindow.fblength.text()))
+                self.iwindow.fstimcycle.text().strip(), int(self.iwindow.fblength.text()), float(self.dfield.text()))
 
 
 class QTextEditLogger(QPlainTextEdit):
