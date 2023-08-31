@@ -510,12 +510,12 @@ class CollectionWindow(PageWindow):
 
     def activate(self):
         """Set starting fields and begin session"""
-        self.info_panel.set_info()
-        self.update_status()
+        self.info_panel.set_info(self.info)
         self.set_start_mode('Start', True)
-        self.log_panel.logbox.clear()
+        self.log_panel.reset(self.infopath, self.csession)
         self.status_panel.set_block_time("00:00")
         self.status_panel.set_session_time("00:00")
+        self.update_status()
         ready_thread = Thread(target=self.wait_for_ready, name="ReadyThread")
         ready_thread.start()
         self.csession.start()
@@ -692,7 +692,9 @@ class InfoPanel(QFrame):
         layout.addLayout(leftlayout)
         layout.addLayout(rightlayout)
 
-    def set_info(self):
+    def set_info(self, info=None):
+        if info:
+            self.info = info
         sub = self.info['SessionParams'].get('SubjectName', '--') + '\n'
         proj = self.info['SessionParams'].get('ProjectName', '--') + '\n'
         resp = self.info['SessionParams'].get('ResponseType', '--') + '\n'
@@ -755,22 +757,28 @@ class StatusPanel(QFrame):
         self.state_indicator.set_active(active)
 
 
+def init_logbox(ipath, session):
+    """Pass logfile to BoardShim and set up for GUI log window"""
+    lfile = os.path.join(os.path.normpath(ipath + os.sep + os.pardir), "sessionlog.log")
+    session.activate_logger(lfile)
+    return QTextEditLogger(lfile)
+
+
 class LogPanel(QFrame):
     def __init__(self, ipath, log_label, session):
         super().__init__()
         self.setFrameStyle(QFrame.Panel | QFrame.Plain)
-        self.ipath = ipath
-        self.session = session
-        self.logbox = self.init_logger()
+        self.log_label = log_label
+        self.logbox = init_logbox(ipath, session)
 
         layout = QVBoxLayout(self)
         layout.addWidget(log_label, Qt.AlignTop | Qt.AlignLeft)
         self.logbox.mount(layout)
         layout.setStretchFactor(log_label, 1)
         layout.setStretchFactor(self.logbox, 10)
-    
-    def init_logger(self):
-        """Pass logfile to BoardShim and set up for GUI log window"""
-        lfile = os.path.join(os.path.normpath(self.ipath + os.sep + os.pardir), "sessionlog.log")
-        self.session.activate_logger(lfile)
-        return QTextEditLogger(lfile)
+
+    def reset(self, ipath, session):
+        self.logbox.clear()
+        newfile = os.path.join(os.path.normpath(ipath + os.sep + os.pardir), "sessionlog.log")
+        self.logbox.set_file(newfile)
+        session.activate_logger(newfile)
