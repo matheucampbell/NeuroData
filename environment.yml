@@ -1,4 +1,4 @@
-name: collection-env
+name: data-env
 channels:
   - defaults
 dependencies:
