@@ -641,6 +641,7 @@ class CollectionWindow(PageWindow):
 
     def pause_stream(self):
         self.stop_event.set()
+        self.log_panel.end_log()
         self.timer.stop()
         self.state_indicator.set_active(False)
         self.stop_button.setDisabled(True)
@@ -660,6 +661,7 @@ class CollectionWindow(PageWindow):
 
     def stop_session(self):
         self.stop_event.set()
+        self.log_panel.end_log()
         self.timer.stop()
         self.state_indicator.set_active(False)
         self.stop_button.setDisabled(True)
@@ -780,5 +782,8 @@ class LogPanel(QFrame):
     def reset(self, ipath, session):
         self.logbox.clear()
         newfile = os.path.join(os.path.normpath(ipath + os.sep + os.pardir), "sessionlog.log")
-        self.logbox.set_file(newfile)
         session.activate_logger(newfile)
+        self.logbox.set_file(newfile)
+
+    def end_log(self):
+        self.logbox.logfile.close()
