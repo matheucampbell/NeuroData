@@ -58,7 +58,7 @@ Stores all sessions as files with file IDs that correspond to a row in session t
   - updating conda
   - updating pip
   - installing packages without specific version numbers
-- Activate environment with `conda activate collection-env`
+- Activate environment with `conda activate data-env`
 
 ### Other
 If choosing to use a non-conda virtual environment or installing to global Python site packages, reference environment.yml when
