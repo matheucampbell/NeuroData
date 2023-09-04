@@ -1,3 +1,4 @@
+"""Data Collection GUI v1.0.0"""
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QSizePolicy)
 from Windows import CollectionWindow, InfoWindow, ModeWindow

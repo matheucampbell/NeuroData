@@ -118,6 +118,9 @@ with open(info_path) as fileinfo:
 if not verify_json(info):
     sys.exit(1)
 
+if not input(f"Session found at '{session_path}'. Upload to database? (y/N) ") == 'y':
+    sys.exit(1)
+
 # Upload file to data table
 fname = "data" + os.path.basename(session_path).split("_")[2] + ".csv"
 try:
