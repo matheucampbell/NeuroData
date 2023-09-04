@@ -107,6 +107,8 @@ except OSError:
               "before retrieving data.")
     sys.exit(1)
 
+while query.get()['status'] == 'running':
+    pass
 if not query.get()['outputNumRows']:
     print("0 sessions found. Try again with different criteria.")
     sys.exit(0)
