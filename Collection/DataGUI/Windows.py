@@ -786,4 +786,4 @@ class LogPanel(QFrame):
         self.logbox.reset_file(newfile)
 
     def end_log(self):
-        self.logbox.logfile.close()
+        self.logbox.end()
