@@ -188,6 +188,8 @@ class QTextEditLogger(QPlainTextEdit):
         layout.addWidget(self)
 
     def update_log_window(self):
+        if self.logfile.closed:
+            return
         self.logfile.seek(self.readpos)
         line = self.logfile.read()
         self.appendPlainText(line)
