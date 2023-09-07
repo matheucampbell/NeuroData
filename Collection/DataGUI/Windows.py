@@ -783,7 +783,7 @@ class LogPanel(QFrame):
         self.logbox.clear()
         newfile = os.path.join(os.path.normpath(ipath + os.sep + os.pardir), "sessionlog.log")
         session.activate_logger(newfile)
-        self.logbox.set_file(newfile)
+        self.logbox.reset_file(newfile)
 
     def end_log(self):
         self.logbox.logfile.close()

@@ -195,7 +195,7 @@ class QTextEditLogger(QPlainTextEdit):
         self.appendPlainText(line)
         self.readpos = self.logfile.tell()
 
-    def set_file(self, filepath):
+    def reset_file(self, filepath):
         self.watcher.removePath(self.path)
         self.logfile.close()
         self.logfile = open(filepath, buffering=1)
